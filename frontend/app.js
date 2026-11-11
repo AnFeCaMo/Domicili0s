@@ -76,6 +76,11 @@ function movePedido(pedidoId, direction) {
   const activePedidos = getRoutePedidos();
   const currentIndex = activePedidos.findIndex((pedido) => pedido.id === pedidoId);
   const targetIndex = currentIndex + direction;
+  const navTargetId=window.domicilioNav?.currentTargetId?.();
+  if (navTargetId && (activePedidos[currentIndex]?.id===navTargetId || activePedidos[targetIndex]?.id===navTargetId)) {
+    showToast('La próxima entrega está protegida mientras navegas.', 'info');
+    return;
+  }
 
   if (currentIndex < 0 || targetIndex < 0 || targetIndex >= activePedidos.length) {
     return;
@@ -261,6 +266,7 @@ function renderPedidoList() {
         if (confirm(`¿Mover el pedido #${pedido.number} a estas coordenadas?\n${formatCoordinates(newCoords)}`)) {
           pedido.lat = newCoords[0];
           pedido.lng = newCoords[1];
+          pedido.needsLocationReview = false;
           updatePedidoMarker(pedido);
           saveState();
           renderPedidoList();
@@ -318,6 +324,7 @@ function renderPedidoList() {
       window.v3Refresh?.();
       recalculateIfRouteVisible();
       showToast(`¡Pedido #${pedido.number} completado! 🎉`, 'success');
+      window.domicilioSuggestAfterDelivery?.();
     });
 
     // 5. Registrar Entrega Fallida
@@ -827,12 +834,16 @@ function handlePedidoSubmit(event) {
   if (editingPedidoId) {
     const pedido = pedidos.find((p) => p.id === editingPedidoId);
     if (pedido) {
+      const previousAddress=pedido.address, previousLat=pedido.lat, previousLng=pedido.lng;
       pedido.number = numberValue;
       pedido.name = name;
       pedido.address = address;
       pedido.reference = reference;
       pedido.lat = selectedLocation[0];
       pedido.lng = selectedLocation[1];
+      // No dar una ubicación por validada solo porque se editó su texto.
+      pedido.needsLocationReview = (previousLat===selectedLocation[0] && previousLng===selectedLocation[1])
+        ? (Boolean(pedido.needsLocationReview) || previousAddress!==address) : false;
       updatePedidoMarker(pedido);
       window.v3Audit ||= [];
       window.v3Audit.push({ at: new Date().toISOString(), action: 'Editar pedido', details: `Pedido #${pedido.number}` });
@@ -1261,10 +1272,74 @@ function startGps() {
   showToast('GPS activado en alta precisión', 'success');
 }
 
+// V4.3: revisar y corregir pedidos guardados sin volver a importarlos.
+function displayCurrentOrders(mode='manual') {
+  const panel=document.getElementById('v43-current-orders');
+  if(!panel)return;
+  panel.replaceChildren();
+  const active=getRoutePedidos();
+  const title=document.createElement('h3');title.textContent=mode==='review'?'Revisar direcciones existentes':'Orden manual de entregas';panel.append(title);
+  const note=document.createElement('p'); note.textContent=mode==='review'
+    ?'Corrige nombres y números de direcciones anteriores. Las coordenadas NO cambian automáticamente: verifica las corregidas en el mapa antes de navegar.'
+    :'Usa las flechas para ordenar tus pedidos. Se respeta el orden que elijas y no se sustituye sin aprobación.';panel.append(note);
+  if(!active.length){const p=document.createElement('p');p.textContent='No hay pedidos pendientes.';panel.append(p);return;}
+  const list=document.createElement('div');list.className='v43-existing-list';panel.append(list);
+  active.forEach((p,i)=>{
+    const line=document.createElement('div');line.className='v43-existing-row';
+    const label=document.createElement('strong');label.textContent=`${i+1}. Pedido #${p.number}`;line.append(label);
+    if(mode==='manual'){
+      const up=document.createElement('button');up.type='button';up.className='btn btn-outline btn-sm';up.textContent='↑ Subir';up.disabled=i===0 || p.status==='en_ruta' || (i===1 && (active[0]?.status==='en_ruta' || window.domicilioNav?.currentTargetId?.()===active[0]?.id));
+      up.onclick=()=>{movePedido(p.id,-1);displayCurrentOrders('manual');};
+      const down=document.createElement('button');down.type='button';down.className='btn btn-outline btn-sm';down.textContent='↓ Bajar';down.disabled=i===active.length-1 || p.status==='en_ruta' || (i===0 && window.domicilioNav?.currentTargetId?.()===p.id);
+      down.onclick=()=>{movePedido(p.id,1);displayCurrentOrders('manual');};
+      const labelText=document.createElement('span');labelText.textContent=`${p.name||'Sin nombre'} · ${p.address||'Dirección incompleta'}`;
+      line.append(labelText,up,down);
+    }else{
+      const customer=document.createElement('input');customer.type='text';customer.value=p.name||'';customer.setAttribute('aria-label',`Cliente del pedido ${p.number}`);
+      const addr=document.createElement('input');addr.type='text';addr.value=normalizeAddress(p.address||'');
+      // Solo previsualizar cuando el nombre contiene una dirección completa identificable.
+      const embedded=customer.value.match(/\b(?:calle|carrera|cll|cra|cr)\s+\d+[a-z]?\s+(?:(?:numero|número|numeral|#|calle|carrera|cra|cr)\s*)?\d+[a-z]?[\s-]+\d+[a-z]?\b/i);
+      if(embedded && !/(?:#\s*\d+\s*[-–]\s*\d+)/.test(addr.value)){
+        addr.value=normalizeAddress(embedded[0]);
+        customer.value=customer.value.replace(embedded[0],'').trim();
+      }addr.setAttribute('aria-label',`Dirección del pedido ${p.number}`);
+      const save=document.createElement('button');save.type='button';save.className='btn btn-primary btn-sm';save.textContent='Guardar corrección';
+      const flag=document.createElement('small');flag.textContent=p.needsLocationReview?'⚠ Verifica ubicación en el mapa':'Coordenadas conservadas';
+      save.onclick=()=>{
+        const newName=customer.value.trim(),newAddress=normalizeAddress(addr.value);
+        if(!newAddress){showToast('La dirección no puede quedar vacía','danger');return;}
+        if(!confirm(`¿Guardar los cambios del pedido #${p.number}?\nAntes: ${p.address}\nDespués: ${newAddress}\n\nSi cambia el domicilio, verifica su punto en el mapa.`))return;
+        const changed=newAddress!==p.address;
+        p.name=newName;p.address=newAddress;
+        if(changed)p.needsLocationReview=true;
+        saveState();renderPedidoList();window.v3Refresh?.();
+        displayCurrentOrders('review');showToast(changed?'Dirección guardada. Verifica su ubicación en el mapa.':'Cliente actualizado','info',5500);
+      };
+      if(!embedded && /^\s*(?:calle|carrera)\s+\d+[a-z]?\s*$/i.test(addr.value)){
+        const detached=customer.value.match(/\b(?:número|numero|numeral|#)\s*(\d+[a-z]?)\s+([0-9]+[a-z]?)\b/i);
+        if(detached){
+          addr.value=normalizeAddress(addr.value+' #'+detached[1]+'-'+detached[2]);
+          customer.value=customer.value.replace(detached[0],'').trim();
+        }
+      }
+      line.append(customer,addr,flag,save);
+    }
+    list.append(line);
+  });
+}
+window.domicilioReviewCurrentOrders=()=>displayCurrentOrders('review');
+window.domicilioManualOrder=()=>displayCurrentOrders('manual');
+document.getElementById('review-current-orders')?.addEventListener('click',window.domicilioReviewCurrentOrders);
+document.getElementById('manual-route-order')?.addEventListener('click',window.domicilioManualOrder);
+
 async function proposeRouteOrder() {
   const active = getRoutePedidos();
   const target = document.getElementById('suggestion-preview');
   target.replaceChildren();
+  if(active.some(p=>p.needsLocationReview)){
+    target.textContent='Hay direcciones corregidas con ubicación pendiente de confirmar. Usa «Cambiar Ubic.» en cada pedido antes de optimizar.';
+    return;
+  }
 
   if (active.length < 2) {
     target.innerHTML = '<p class="text-secondary">Se necesitan al menos dos pedidos pendientes para evaluar tiempos por carretera.</p>';
@@ -1286,7 +1361,8 @@ async function proposeRouteOrder() {
     const matrix = data.durations;
     const ids = active.map((_,i)=>i+1);
     const ranks = Object.fromEntries(active.map((p,i)=>[i+1,p.priority==='urgente'?0:p.priority==='prioritario'?1:2]));
-    const locked = active[0]?.status==='en_ruta' ? 1 : null;
+    const navId=window.domicilioNav?.currentTargetId?.();
+    const locked = active[0]?.status==='en_ruta' || (navId && active[0]?.id===navId) ? 1 : null;
     const last = finalPoint ? coords.length-1 : null;
     const sorted = window.domicilioRouteOptimizer.withPriority(ids,matrix,last,ranks,locked);
     const proposal = sorted.map(i=>active[i-1]);
@@ -1295,6 +1371,7 @@ async function proposeRouteOrder() {
     const summaryCost = `${Math.round(oldCost/60)} min actuales → ${Math.round(newCost/60)} min propuestos`;
 
     suggestionOrder = proposal;
+    const snapshot=active.map(p=>`${p.id}:${p.lat}:${p.lng}:${p.address}:${p.priority||''}`).join('|');
     const original = active.map(p => p.id).join('|');
     const proposed = proposal.map(p => p.id).join('|');
 
@@ -1317,6 +1394,9 @@ async function proposeRouteOrder() {
     acceptBtn.className = 'btn btn-primary btn-sm';
     acceptBtn.textContent = 'Aplicar este orden de paradas';
     acceptBtn.onclick = () => {
+      if (getRoutePedidos().map(p=>`${p.id}:${p.lat}:${p.lng}:${p.address}:${p.priority||''}`).join('|')!==snapshot){
+        target.textContent='La lista cambió desde la propuesta. Vuelve a optimizar.';return;
+      }
       if (!confirm('¿Aplicar este orden a tus paradas?')) return;
       let idx = 0;
       for (let i = 0; i < pedidos.length; i++) {
@@ -1334,9 +1414,15 @@ async function proposeRouteOrder() {
 
     target.replaceChildren(summary, acceptBtn);
   } catch (e) {
-    target.innerHTML = '<p class="text-danger">No se pudo consultar el servicio de carreteras. Tu ruta no se modificó.</p>';
+    target.textContent='No se pudo consultar el servicio de carreteras. Tu ruta no se modificó: '+e.message;
   }
 }
+window.domicilioSuggestAfterDelivery=()=>{
+  if(getRoutePedidos().length<2)return;
+  // Solo sugiere; nunca cambia automáticamente el orden aprobado.
+  proposeRouteOrder();
+  showToast('Entrega registrada. Puedes revisar una nueva propuesta de ruta en Rutas.', 'info', 6000);
+};
 
 // Inicialización de Eventos
 searchStartButton?.addEventListener('click', geocodeStartAddress);
@@ -1480,7 +1566,13 @@ const V4_RULES=[
 'Separar los nombres y las referencias de la numeración; mostrar la normalización para confirmación antes de localizar.',
 'Evaluar el costo total de la ruta en matriz vial dirigida, incluyendo ida, sentidos únicos y regreso configurado.',
 'No afirmar que un orden es óptimo si se aplicó una heurística o la matriz vial está incompleta.',
-'Mantener el siguiente pedido activo sin cambiarlo al reoptimizar sin aprobación.'
+'Mantener el siguiente pedido activo sin cambiarlo al reoptimizar sin aprobación.',
+'Después de cada entrega recalcular una propuesta desde el GPS actual, pero mantener el orden hasta que la apruebe.',
+'Permitir reoptimizar pedidos ya registrados sin obligar a importarlos nuevamente.',
+'Ofrecer controles manuales para subir o bajar pedidos y guardar el orden elegido.',
+'Normalizar direcciones antiguas separando palabras y números sin inventar viviendas.',
+'Si se corrige un domicilio existente, conservar sus coordenadas temporalmente pero exigir su verificación antes de optimizar.',
+'No borrar pedidos, nombres, ubicaciones o preferencias existentes durante una migración.'
 ];
 function installV4Rules(){
   const existing=new Set(learnedRules.map(r=>r.text));

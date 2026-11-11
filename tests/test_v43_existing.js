@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync('frontend/app.js','utf8');
+const nav=fs.readFileSync('frontend/navigation.js','utf8');
+const html=fs.readFileSync('frontend/index.html','utf8');
+assert.match(app,/function displayCurrentOrders\(mode='manual'\)/);
+assert.match(app,/p\.needsLocationReview=true/);
+assert.match(app,/window\.domicilioSuggestAfterDelivery=/);
+assert.match(app,/window\.domicilioRouteOptimizer\.withPriority/);
+assert.match(app,/getRoutePedidos\(\)\.map\(p=>/);
+assert.match(nav,/window\.domicilioSuggestAfterDelivery\?\.\(\)/);
+assert.match(html,/id="review-current-orders"/);
+assert.match(html,/id="manual-route-order"/);
+console.log('V4.3: UI de pedidos anteriores y reoptimización protegida: OK');

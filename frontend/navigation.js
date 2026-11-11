@@ -167,10 +167,12 @@
         stop();showToast(`Entrega registrada. El pedido #${next.number} requiere verificar su ubicación.`, 'info', 6000);return;
       }
       stop();start(next);
+      window.domicilioSuggestAfterDelivery?.();
       showToast(`Entrega #${p.number} completada. Navegando al pedido #${next.number}.`, 'success', 5000);
       return;
     }
     stop();
+    if(next)window.domicilioSuggestAfterDelivery?.();
     if(!next) {
       showToast('¡Todas las entregas están completadas! Puedes regresar a base.', 'success', 6000);
     } else {
@@ -184,5 +186,5 @@
   $('nav-v4-arrived').addEventListener('click',deliver);
   window.addEventListener('offline',()=>{if(target){status('Sin conexión');message('Conexión perdida. Mantengo la ruta visible; no puedo recalcular.',true);}});
   window.addEventListener('online',()=>{if(target){status('Conectado');message('Conexión recuperada.',true);}});
-  window.domicilioNav={start,back,stop,calculate,showOverviewArrows};
+  window.domicilioNav={start,back,stop,calculate,showOverviewArrows,currentTargetId:()=>target?.id||null};
 })();

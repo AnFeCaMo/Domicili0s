@@ -550,7 +550,7 @@
         <section id="routes-view" class="v3-view-screen hidden">
           <div class="screen-page-header">
             <div>
-              <h2 class="screen-page-title">Rutas y Secuencia de Entrega</h2>
+              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V4.3</h2>
               <p class="screen-page-subtitle">Configura origen, optimiza la ruta y define tu regreso</p>
             </div>
           </div>
@@ -615,8 +615,10 @@
               <div class="route-action-buttons-group">
                 <button id="optimize-route-button" type="button" class="btn btn-purple-primary btn-lg">
                   <i data-lucide="zap"></i>
-                  <span>Optimizar automáticamente (Proximidad)</span>
+                  <span>Optimizar pedidos actuales (OSRM)</span>
                 </button>
+                <button id="review-current-orders" type="button" class="btn btn-purple-outline btn-lg">✏️ Revisar direcciones guardadas</button>
+                <button id="manual-route-order" type="button" class="btn btn-purple-outline btn-lg">↕ Ordenar pedidos manualmente</button>
                 <button id="suggest-route" type="button" class="btn btn-purple-outline btn-lg">
                   <i data-lucide="git-merge"></i>
                   <span>Sugerir orden por carretera (OSRM)</span>
@@ -626,7 +628,8 @@
                   <span>Trazar ruta en el mapa</span>
                 </button>
               </div>
-              <div id="suggestion-preview" class="suggestion-box"></div>
+              <div id="v43-current-orders" class="suggestion-box" aria-live="polite"></div>
+              <div id="suggestion-preview" class="suggestion-box" aria-live="polite"></div>
               <div id="address-feedback" class="address-feedback hidden" aria-live="polite"></div>
             </div>
 

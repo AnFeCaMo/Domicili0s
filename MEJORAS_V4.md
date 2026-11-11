@@ -58,3 +58,13 @@ No se modificó Render ni GitHub. Se entrega un archivo comprimido sin la carpet
 - `node --check frontend/*.js` (ejecutar por archivo).
 - `python -m pytest -q tests/test_smoke.py tests/test_bulk_static.py` con el servidor FastAPI corriendo.
 - Aún deben comprobarse a pie o con el vehículo estacionado la ubicación GPS, la geocodificación de direcciones de Ciénaga y la consistencia de los sentidos reales. No usar como sustituto de la señalización vial.
+
+## V4.3 — pedidos existentes y reoptimización dinámica
+- Los pedidos ya guardados se pueden revisar, normalizar y corregir con aprobación individual, sin reimportarlos.
+- Si se cambia una dirección, se exige revisar su ubicación en el mapa. Las coordenadas no se inventan ni actualizan en silencio.
+- Botones de orden manual en la sección Rutas para subir y bajar pedidos activos.
+- Después de confirmar una entrega se solicita una **propuesta** de reoptimización con los pedidos restantes; solo se aplica si se aprueba explícitamente.
+- El recorrido actual y la próxima parada en navegación se mantienen protegidos mientras no se acepte otro orden.
+- Reglas nuevas persistentes que no sustituyen las preferencias previas.
+- La matriz vial de OSRM requiere internet y puede tener límites; V4.3 no garantiza tráfico en vivo, GPS en segundo plano ni exactitud de geocodificación.
+- **Antes de instalar:** exportar copia de seguridad desde la aplicación. Los pedidos están en localStorage del navegador, no en GitHub.

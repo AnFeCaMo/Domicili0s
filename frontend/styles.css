@@ -2922,3 +2922,9 @@ input:focus, textarea:focus, select:focus {
 /* DOMICILIO V4.1: avance automático configurable */
 .nav-v4-auto-next { display:flex; align-items:center; gap:9px; margin:9px 0; font-size:.88rem; line-height:1.35; cursor:pointer; }
 .nav-v4-auto-next input { width:20px; height:20px; flex:none; accent-color:#5f43cb; }
+
+/* V4.3 - edición de pedidos antiguos y orden manual */
+.v43-existing-list{display:grid;gap:10px;margin-top:12px}
+.v43-existing-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;border:1px solid var(--border,#ddd);border-radius:12px}
+.v43-existing-row input{flex:1 1 155px;min-width:120px;padding:10px;border:1px solid #a8a8af;border-radius:8px}
+.v43-existing-row small{color:#965c13}
