@@ -526,7 +526,8 @@
   });
 
   $('home-quick-optimize')?.addEventListener('click', () => {
-    optimizePedidoOrder();
+    navigate('routes');
+    proposeRouteOrder();
   });
 
   $('home-quick-return')?.addEventListener('click', () => {

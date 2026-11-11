@@ -40,12 +40,12 @@
           rows.push({name:nextLine, address:parts[0], reference:'', priority:'normal'});
           i += 1;
         } else {
-          rows.push({name, address:parts[addressIdx], reference:parts.slice(addressIdx+1).join(' - '), priority:'normal'});
+          rows.push({name, address:window.domicilioNormalizeAddress(parts[addressIdx]), reference:parts.slice(addressIdx+1).join(' - '), priority:'normal'});
         }
       } else if (rows.length) {
         rows[rows.length-1].reference = [rows[rows.length-1].reference,line].filter(Boolean).join(' - ');
       } else {
-        rows.push({name:'',address:line,reference:'',priority:'normal'});
+        rows.push({name:'',address:window.domicilioNormalizeAddress(line),reference:'',priority:'normal'});
       }
     }
     return rows;
@@ -61,6 +61,7 @@
   function uniqueRows(rows) {
     const keys = new Set();
     return rows.filter(row => {
+      row.address = window.domicilioNormalizeAddress(row.address);
       const key = normalize(row.address)+'|'+normalize(row.name);
       if (!clean(row.address) || keys.has(key)) return false;
       keys.add(key); return true;
@@ -74,7 +75,7 @@
       const item=document.createElement('div'); item.className='bulk-item';
       item.innerHTML=`<span class="bulk-index">${i+1}</span><div class="bulk-fields"><input aria-label="Nombre" placeholder="Cliente (opcional)" value="${escapeHtml(row.name)}" data-field="name"><input aria-label="Dirección" placeholder="Dirección" value="${escapeHtml(row.address)}" data-field="address"><input aria-label="Referencia" placeholder="Referencia" value="${escapeHtml(row.reference)}" data-field="reference"><select aria-label="Prioridad" data-field="priority"><option value="normal">Normal</option><option value="prioritario">Prioritario</option><option value="urgente">Urgente</option></select><small class="bulk-row-status">${escapeHtml(row.issue)}</small></div><button type="button" class="bulk-remove" aria-label="Quitar dirección">×</button>`;
       item.querySelector('select').value=row.priority;
-      item.querySelectorAll('[data-field]').forEach(control=>control.addEventListener('change',()=>{row[control.dataset.field]=control.value; row.checked=false; row.lat=null; row.lng=null; row.candidates=null; row.issue='Sin verificar'; item.querySelector('.bulk-row-status').textContent=row.issue; proposal=null;}));
+      item.querySelectorAll('[data-field]').forEach(control=>control.addEventListener('change',()=>{row[control.dataset.field]=control.dataset.field==='address'?window.domicilioNormalizeAddress(control.value):control.value; if(control.dataset.field==='address')control.value=row.address; row.checked=false; row.lat=null; row.lng=null; row.candidates=null; row.issue='Sin verificar'; item.querySelector('.bulk-row-status').textContent=row.issue; proposal=null;}));
       item.querySelector('.bulk-remove').onclick=()=>{draft.splice(i,1);preview();};
       table.append(item);
     });
@@ -140,25 +141,7 @@
     return total;
   };
   function optimizeIndices(indices,weights,finalIndex) {
-    const remaining=[...indices], out=[];let at=0;
-    while(remaining.length){let best=-1, bestCost=Infinity;
-      remaining.forEach((idx,i)=>{const c=weights[at]?.[idx];const last=remaining.length===1&&finalIndex!==null?weights[idx]?.[finalIndex]:0;
-        if(Number.isFinite(c)&&Number.isFinite(last)&&c+last<bestCost){best=i;bestCost=c+last;}});
-      if(best<0)throw new Error('No existe conexión por carretera entre todas las paradas.');
-      const next=remaining.splice(best,1)[0];out.push(next);at=next;
-    }
-    // Refinamiento 2-opt, con máximo de iteraciones para evitar bloquear el navegador.
-    let best=routeCost(out,weights,finalIndex);
-    for(let pass=0;pass<8;pass++){
-      let improved=false;
-      for(let i=0;i<out.length-1;i++)for(let j=i+1;j<out.length;j++){
-        const candidate=[...out.slice(0,i),...out.slice(i,j+1).reverse(),...out.slice(j+1)];
-        const cost=routeCost(candidate,weights,finalIndex);
-        if(cost+0.0001<best){out.splice(0,out.length,...candidate);best=cost;improved=true;}
-      }
-      if(!improved)break;
-    }
-    return out;
+    return window.domicilioRouteOptimizer.solve(indices, weights, finalIndex);
   }
   function renderProposal() {
     const panel=$('bulk-proposal'); panel.classList.remove('hidden');panel.replaceChildren();

@@ -42,3 +42,19 @@ No se modificó Render ni GitHub. Se entrega un archivo comprimido sin la carpet
 - Si no quedan pedidos, muestra un aviso sin iniciar el regreso por su cuenta.
 - Si el siguiente pedido carece de coordenadas, detiene la navegación y avisa para verificarlo; no salta pedidos.
 - Nunca marca el siguiente pedido como entregado automáticamente.
+
+## V4.2 — Direcciones y optimización de recorridos
+- Normalización local de vías: «Calle 24 número 11 16», «Calle 24 carrera 11 16» o «Calle 24 #11-16» → «Calle 24 #11-16».
+- Si inicia con Calle, el segundo componente se interpreta como Carrera; si inicia con Carrera, se interpreta como Calle. Siempre se respeta el último como placa de casa.
+- Se mantiene la referencia original si hay una intersección sin número de vivienda (no inventar casas). Revisar posición en mapa antes de iniciar.
+- Reglas nuevas persistentes en la memoria local; no se borran pedidos ni reglas personalizadas.
+- El cálculo de propuesta desde la pantalla de Rutas usa matriz dirigida OSRM y evalúa el recorrido completo para hasta 10 paradas por nivel de prioridad; para listas grandes utiliza heurística y 2-opt. Se solicita aprobación antes de cambiar el orden.
+- La importación masiva conserva la confirmación y refina tramos con solucionador exacto para hasta 10 paradas en cada grupo.
+- Los servicios OSRM gratuitos no prometen tráfico en tiempo real ni resultados siempre disponibles; las indicaciones requieren verificar coordenadas.
+
+### Verificación V4.2
+- `node tests/test_v42_rules.js`: interpreta nueve ejemplos y valida la búsqueda exhaustiva del mejor orden (para pocos pedidos).
+- `node tests/test_v42_parse.js`: separa nombres de clientes y direcciones en listas.
+- `node --check frontend/*.js` (ejecutar por archivo).
+- `python -m pytest -q tests/test_smoke.py tests/test_bulk_static.py` con el servidor FastAPI corriendo.
+- Aún deben comprobarse a pie o con el vehículo estacionado la ubicación GPS, la geocodificación de direcciones de Ciénaga y la consistencia de los sentidos reales. No usar como sustituto de la señalización vial.

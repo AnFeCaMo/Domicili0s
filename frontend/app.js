@@ -418,52 +418,9 @@ function haversineDistance([lat1, lng1], [lat2, lng2]) {
   return earthRadiusKm * c;
 }
 
+// Compatibilidad con botones históricos: toda optimización ahora propone y pide aprobación.
 function optimizePedidoOrder() {
-  const activePedidos = getRoutePedidos();
-
-  if (activePedidos.length < 2) {
-    showAddressFeedback('Se necesitan al menos 2 pedidos activos para optimizar.', true);
-    return;
-  }
-
-  const unvisited = [...activePedidos];
-  const ordered = [];
-  let currentLocation = [...startLocation];
-
-  while (unvisited.length > 0) {
-    let nearestIndex = 0;
-    let minDistance = Number.POSITIVE_INFINITY;
-
-    for (let index = 0; index < unvisited.length; index += 1) {
-      const candidate = unvisited[index];
-      const distance = haversineDistance(currentLocation, [candidate.lat, candidate.lng]);
-
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestIndex = index;
-      }
-    }
-
-    const [nearestPedido] = unvisited.splice(nearestIndex, 1);
-    ordered.push(nearestPedido);
-    currentLocation = [nearestPedido.lat, nearestPedido.lng];
-  }
-
-  let orderedIndex = 0;
-  for (let index = 0; index < pedidos.length; index += 1) {
-    if (pedidos[index].status !== 'entregado' && pedidos[index].status !== 'fallido') {
-      pedidos[index] = ordered[orderedIndex];
-      orderedIndex += 1;
-    }
-  }
-
-  window.v3Audit ||= [];
-  window.v3Audit.push({ at: new Date().toISOString(), action: 'Optimizar ruta', details: 'Heurística de proximidad aplicada' });
-  renderPedidoList();
-  saveState();
-  window.v3Refresh?.();
-  calculateRoute();
-  showToast('Ruta optimizada por proximidad', 'success');
+  return proposeRouteOrder();
 }
 
 function renderRouteSummary(data, routeOrders = []) {
@@ -941,6 +898,9 @@ function initializeMap() {
 
 // Asistente Local Heurístico
 function parseAddressList(text) {
+  // La normalización se aplica por línea ANTES de separar dirección de cliente.
+  // Ej.: «Calle 24 número 11 16\nAna» no debe convertir «16» en nombre.
+  text=String(text||'').split(/\r?\n/).map(line=>normalizeAddress(line)).join('\n');
   const addressPattern = /\b(?:calle|cll?\.?|carrera|cra?\.?|cr\.?|kr\.?|avenida|av\.?|diagonal|dg\.?|transversal|tv\.?|manzana|mz\.?|kil[oó]metro|km)\s+\d+[a-z]?(?:\s*(?:#|n(?:[.º°]|o\.?)?)\s*\d+[a-z]?(?:\s*[-–]\s*\d+[a-z]?)?)?(?:\s*(?:bis|sur|este|oeste))?/giu;
   const matches = [...text.matchAll(addressPattern)];
   if (!matches.length) return [];
@@ -993,7 +953,7 @@ function parseInstruction(text) {
 
   // Solicitud de optimización
   if (/(optimiza|mejor ruta|ordenar ruta|secuencia)/i.test(value)) {
-    return { type: 'action_optimize', message: '¿Deseas que reorganice tus pedidos por proximidad?' };
+    return { type: 'action_optimize', message: '¿Deseas que calcule una propuesta por tiempo total de carretera y te permita aprobarla?' };
   }
 
   // Reglas o recuerdos
@@ -1066,7 +1026,7 @@ function previewInstruction() {
     window.v3AppendChatMessage?.(data.message, 'assistant', [
       {
         label: 'Optimizar ahora',
-        action: () => optimizePedidoOrder(),
+        action: () => proposeRouteOrder(),
       }
     ]);
     return;
@@ -1324,41 +1284,29 @@ async function proposeRouteOrder() {
     if (!response.ok || data.code !== 'Ok' || !data.durations) throw new Error('Servicio de rutas no disponible');
 
     const matrix = data.durations;
-    const remaining = active.map((p, i) => ({ p, index: i + 1 }));
-    const proposal = [];
-    let at = 0;
-    const last = finalPoint ? coords.length - 1 : null;
-
-    while (remaining.length) {
-      let best = 0;
-      let cost = Infinity;
-      remaining.forEach((item, i) => {
-        const d = matrix[at]?.[item.index];
-        const end = last !== null && remaining.length === 1 ? matrix[item.index]?.[last] || 0 : 0;
-        const total = d + end;
-        if (d !== null && Number.isFinite(d) && total < cost) {
-          cost = total;
-          best = i;
-        }
-      });
-      const next = remaining.splice(best, 1)[0];
-      proposal.push(next.p);
-      at = next.index;
-    }
+    const ids = active.map((_,i)=>i+1);
+    const ranks = Object.fromEntries(active.map((p,i)=>[i+1,p.priority==='urgente'?0:p.priority==='prioritario'?1:2]));
+    const locked = active[0]?.status==='en_ruta' ? 1 : null;
+    const last = finalPoint ? coords.length-1 : null;
+    const sorted = window.domicilioRouteOptimizer.withPriority(ids,matrix,last,ranks,locked);
+    const proposal = sorted.map(i=>active[i-1]);
+    const oldCost = window.domicilioRouteOptimizer.cost(ids,matrix,last);
+    const newCost = window.domicilioRouteOptimizer.cost(sorted,matrix,last);
+    const summaryCost = `${Math.round(oldCost/60)} min actuales → ${Math.round(newCost/60)} min propuestos`;
 
     suggestionOrder = proposal;
     const original = active.map(p => p.id).join('|');
     const proposed = proposal.map(p => p.id).join('|');
 
     if (original === proposed) {
-      target.innerHTML = '<p class="text-success">El orden actual ya es el más óptimo según los tiempos por carretera.</p>';
+      target.innerHTML = '<p class="text-success">No se encontró una alternativa más rápida con las restricciones y los datos de OSRM disponibles.</p>';
       return;
     }
 
     const summary = document.createElement('div');
     summary.style.marginTop = '8px';
     summary.innerHTML = `
-      <p style="font-weight: 600; margin-bottom: 6px;">Orden sugerido por carretera:</p>
+      <p style="font-weight: 600; margin-bottom: 6px;">Orden sugerido por carretera (${summaryCost}):</p>
       <div style="background: var(--bg-subtle); padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 8px;">
         ${proposal.map(p => `#${p.number}`).join(' → ')}
       </div>
@@ -1394,7 +1342,7 @@ async function proposeRouteOrder() {
 searchStartButton?.addEventListener('click', geocodeStartAddress);
 setStartOnMapButton?.addEventListener('click', enableStartSelectionMode);
 searchLocationButton?.addEventListener('click', geocodeAddress);
-optimizeRouteButton?.addEventListener('click', optimizePedidoOrder);
+optimizeRouteButton?.addEventListener('click', proposeRouteOrder);
 calculateRouteButton?.addEventListener('click', calculateRoute);
 returnToStartInput?.addEventListener('change', () => {
   saveState();
@@ -1460,27 +1408,47 @@ initVoice();
 
 // Normalización conservadora: convertir números escritos en letras sin inventar domicilios.
 function normalizeAddress(raw) {
-  const nums={cero:0,uno:1,una:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,cien:100,ciento:100,doscientos:200,trescientos:300,cuatrocientos:400,quinientos:500};
-  const accents=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const words=raw.match(/[\p{L}]+|\d+|[^\p{L}\d]+/gu)||[];
-  const out=[];
-  for(let i=0;i<words.length;i++) {
-    const w=accents(words[i]);
-    if(!(w in nums)) {out.push(words[i]);continue;}
-    let value=nums[w],j=i;
-    // Admite "treinta y dos", "ciento cinco" y "doscientos uno".
-    while(j+2<words.length && /^\s+$/.test(words[j+1]) && accents(words[j+2]) in nums) {
-      const n=nums[accents(words[j+2])];
-      if((value>=100 && n<100) || (value>=20 && value%10===0 && n<10)) {value+=n;j+=2;}
-      else if(n===100 && value>0 && value<10) {value*=100;j+=2;}
-      else break;
-      if(/^\s+y\s+$/i.test(words.slice(j+1,j+4).join(''))) { /* handled by next loop */ }
+  // Interpretación local reversible: nunca geocodificar ni inventar un número de casa.
+  let text = String(raw ?? '').trim().replace(/\s+/g, ' ');
+  const ascii = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const units = {cero:0, un:1, uno:1, una:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9};
+  const teens = {diez:10, once:11, doce:12, trece:13, catorce:14, quince:15, dieciseis:16, diecisiete:17, dieciocho:18, diecinueve:19, veinte:20,
+    veintiuno:21, veintidos:22, veintitres:23, veinticuatro:24, veinticinco:25, veintiseis:26, veintisiete:27, veintiocho:28, veintinueve:29};
+  const tens = {treinta:30, cuarenta:40, cincuenta:50, sesenta:60, setenta:70, ochenta:80, noventa:90};
+  const hundreds = {cien:100, ciento:100, doscientos:200, trescientos:300, cuatrocientos:400, quinientos:500};
+  // Sustituye secuencias numéricas en palabras respetando otras palabras como el nombre del cliente.
+  const tokens = text.match(/[\p{L}]+|\d+|[^\p{L}\d]+/gu) || [];
+  const output=[];
+  for(let i=0;i<tokens.length;i++) {
+    const w=ascii(tokens[i]);
+    let number = w in units ? units[w] : w in teens ? teens[w] : w in tens ? tens[w] : w in hundreds ? hundreds[w] : null;
+    if(number===null){output.push(tokens[i]);continue;}
+    let j=i;
+    const nextWord = at => at<tokens.length && /^\s+$/.test(tokens[at-1]||'') ? ascii(tokens[at]) : null;
+    if(number>=100 && number%100===0) {
+      const second=nextWord(j+2);
+      if(second && (second in teens || second in tens || second in units)) {
+        number+=(teens[second]??tens[second]??units[second]);j+=2;
+      }
     }
-    // Handle the connecting 'y' token between tens and units.
-    if(value>=20 && value%10===0 && /^\s+y\s+$/i.test(words.slice(j+1,j+4).join('')) && nums[accents(words[j+4]||'')]<10) {value+=nums[accents(words[j+4])];j+=4;}
-    out.push(String(value));i=j;
+    if(number>=20 && number%10===0 && number%100>=20) {
+      if(/^\s+$/.test(tokens[j+1]||'') && ascii(tokens[j+2]||'')==='y' && /^\s+$/.test(tokens[j+3]||'') && ascii(tokens[j+4]||'') in units){
+        number+=units[ascii(tokens[j+4])];j+=4;
+      }
+    }
+    output.push(String(number));i=j;
   }
-  return out.join('').replace(/\b(cll|cl)\.?\s+/gi,'Calle ').replace(/\b(cra|cr|kr)\.?\s+/gi,'Carrera ');
+  text=output.join('').replace(/\b(cll|cl)\.?\s+/gi,'Calle ').replace(/\b(cra|cr|kr)\.?\s+/gi,'Carrera ');
+  text=text.replace(/\bnumero\b|\bnúmero\b/gi,'#').replace(/\bnumeral\b/gi,'#');
+  text=text.replace(/(\d+[A-Za-z]?)\s+guion\s+(\d+[A-Za-z]?)/gi,'$1-$2');
+  // En Colombia, Calle X seguida de Carrera Y o # Y-Z se interpreta como Calle X #Y-Z.
+  // Carrera X seguida de Calle Y se interpreta como Carrera X #Y-Z.
+  const match=text.match(/^(\s*(?:Calle|Carrera)\s+\d+[A-Za-z]?(?:\s+bis)?)(?:\s+(?:con\s+)?(?:Calle|Carrera|#|No\.?|Nro\.?|N°)\s*|\s+)(\d+[A-Za-z]?)(?:\s*[-–]\s*|\s+)(\d+[A-Za-z]?)(.*)$/i);
+  if(match) return `${match[1].trim()} #${match[2]}-${match[3]}${match[4]||''}`.replace(/\s+/g,' ').trim();
+  // Intersección sin número de casa: no completar una numeración inexistente.
+  const cross=text.match(/^(\s*(?:Calle|Carrera)\s+\d+[A-Za-z]?)(?:\s+con\s+|\s+)(Calle|Carrera)\s+(\d+[A-Za-z]?)(.*)$/i);
+  if(cross) return `${cross[1].trim()} con ${cross[2]} ${cross[3]}${cross[4]||''}`.replace(/\s+/g,' ').trim();
+  return text.trim();
 }
 window.domicilioNormalizeAddress=normalizeAddress;
 const V4_RULES=[
@@ -1503,7 +1471,16 @@ const V4_RULES=[
 'Informar de cierres y congestiones solo con fuentes actuales y verificables.',
 'No presentar reportes comunitarios como información confirmada.',
 'Respetar sentidos únicos y prohibiciones de giro según los datos del mapa.',
-'Priorizar indicaciones por voz y controles grandes para reducir interacción al conducir.'
+'Priorizar indicaciones por voz y controles grandes para reducir interacción al conducir.',
+'Cuando una dirección empieza por Calle, el número siguiente a # o número representa la carrera y el último es el número de casa.',
+'Cuando una dirección empieza por Carrera, el número siguiente a # o número representa la calle y el último es el número de casa.',
+'Interpretar Calle 24 número 11 16, Calle 24 carrera 11 16 y Calle 24 #11-16 como Calle 24 #11-16.',
+'Interpretar Carrera 11 calle 24 16, Carrera 11 número 24 16 y Carrera 11 #24-16 como Carrera 11 #24-16.',
+'La palabra número, numeral y el símbolo # expresan el separador de numeración predial, no un nuevo cliente.',
+'Separar los nombres y las referencias de la numeración; mostrar la normalización para confirmación antes de localizar.',
+'Evaluar el costo total de la ruta en matriz vial dirigida, incluyendo ida, sentidos únicos y regreso configurado.',
+'No afirmar que un orden es óptimo si se aplicó una heurística o la matriz vial está incompleta.',
+'Mantener el siguiente pedido activo sin cambiarlo al reoptimizar sin aprobación.'
 ];
 function installV4Rules(){
   const existing=new Set(learnedRules.map(r=>r.text));
