@@ -2918,3 +2918,7 @@ input:focus, textarea:focus, select:focus {
 /* Navegación V4: controles legibles en móvil */
 .nav-v4{position:fixed;z-index:1100;bottom:78px;left:12px;right:12px;max-width:620px;margin:auto;padding:14px;background:#fff;color:#172033;border:2px solid #6d28d9;border-radius:16px;box-shadow:0 8px 28px #0004;font-size:16px}
 .nav-v4[hidden]{display:none!important}.nav-v4-title{font-weight:800;display:flex;justify-content:space-between}.nav-v4-title span{font-size:12px}.nav-v4 #nav-v4-instruction{font-size:20px;font-weight:800;margin:8px 0}.nav-v4 #nav-v4-details{font-size:13px;margin-bottom:8px}.nav-v4-buttons{display:flex;flex-wrap:wrap;gap:7px}.nav-v4-buttons button{min-height:42px;padding:8px;border:0;border-radius:9px;background:#ede9fe;color:#35126a;font-weight:700}.nav-v4-buttons button:first-child{background:#6d28d9;color:white}
+
+/* DOMICILIO V4.1: avance automático configurable */
+.nav-v4-auto-next { display:flex; align-items:center; gap:9px; margin:9px 0; font-size:.88rem; line-height:1.35; cursor:pointer; }
+.nav-v4-auto-next input { width:20px; height:20px; flex:none; accent-color:#5f43cb; }

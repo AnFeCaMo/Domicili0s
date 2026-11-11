@@ -35,3 +35,10 @@
 
 ## Despliegue
 No se modificó Render ni GitHub. Se entrega un archivo comprimido sin la carpeta `.git` ni cachés.
+
+## Actualización V4.1 — siguiente pedido automático
+- Casilla «Ir automáticamente al siguiente pedido» activada por defecto en la navegación; preferencia persistente en este navegador.
+- Al confirmar manualmente una entrega, comienza la navegación a la primera parada pendiente según el orden aprobado.
+- Si no quedan pedidos, muestra un aviso sin iniciar el regreso por su cuenta.
+- Si el siguiente pedido carece de coordenadas, detiene la navegación y avisa para verificarlo; no salta pedidos.
+- Nunca marca el siguiente pedido como entregado automáticamente.

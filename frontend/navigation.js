@@ -5,7 +5,13 @@
   const panel = $('nav-v4');
   let watch = null, point = null, marker = null, line = null, arrows = [], overviewArrows = [];
   let target = null, route = null, steps = [], stepIndex = -1, lastReroute = 0, lastVoice = '', arrived = false;
-  let gpsAccuracy = Infinity, gpsTimestamp = 0, calculating = false, destinationIsBase = false;
+  let gpsAccuracy = Infinity, gpsTimestamp = 0, calculating = false, destinationIsBase = false, routeGeneration = 0;
+  const autoNextKey = 'domicilio-v4-auto-next';
+  const autoNextCheckbox = $('nav-v4-auto-next');
+  autoNextCheckbox.checked = localStorage.getItem(autoNextKey) !== 'false';
+  autoNextCheckbox.addEventListener('change', () => {
+    try { localStorage.setItem(autoNextKey, String(autoNextCheckbox.checked)); } catch (_) {}
+  });
   const toRad = x => x * Math.PI / 180;
   const distance = (a,b) => { const dlat=toRad(b[0]-a[0]),dlon=toRad(b[1]-a[1]); const h=Math.sin(dlat/2)**2+Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.sin(dlon/2)**2; return 12742000*Math.asin(Math.min(1,Math.sqrt(h))); };
   const safeText = v => String(v || '').replace(/[<>]/g,'');
@@ -104,12 +110,14 @@
       }catch(_){}
       message('Sin internet: se conservan los pedidos, pero no se puede calcular una ruta nueva.',true);return;
     }
-    calculating=true; status('Calculando');
+    calculating=true; const generation=++routeGeneration; status('Calculando');
     const pts=[point,target.coords].map(p=>`${p[1]},${p[0]}`).join(';');
     try {
       const response=await fetch(`https://router.project-osrm.org/route/v1/driving/${pts}?overview=full&geometries=geojson&steps=true`,{signal:AbortSignal.timeout(16000)});
       if(!response.ok) throw new Error('Servicio de rutas no disponible');
-      const data=await response.json(); if(data.code!=='Ok'||!data.routes?.length) throw new Error('No se encontró recorrido por calles');
+      const data=await response.json();
+      if(generation!==routeGeneration) return;
+      if(data.code!=='Ok'||!data.routes?.length) throw new Error('No se encontró recorrido por calles');
       route=data.routes[0]; steps=(route.legs||[]).flatMap(l=>l.steps||[]).map(s=>({...s,point:[s.maneuver.location[1],s.maneuver.location[0]]}));
       stepIndex=-1; arrived=false; removeLayer(line); removeArrows(arrows);
       line=L.geoJSON(route.geometry,{style:{color:destinationIsBase?'#e88725':'#1668e9',weight:7,opacity:0.9,dashArray:destinationIsBase?'12 7':null}}).addTo(mapInstance);
@@ -119,8 +127,8 @@
       $('nav-v4-details').textContent=`${(route.distance/1000).toFixed(2)} km · ${Math.ceil(route.duration/60)} min estimados · ${destinationIsBase?'Regreso':'Ida'}`;
       message(steps.length?stepText(steps[0]):'Sigue la ruta indicada por las flechas.',true);
       try {localStorage.setItem('domicilio-v4-last-route',JSON.stringify({target,geometry:route.geometry,at:Date.now()}));}catch(_){}
-    }catch(e) {status('Ruta no disponible');message(`No se pudo actualizar la ruta: ${e.message}. Revisa la conexión.`,true);}
-    finally {calculating=false;}
+    }catch(e) {if(generation===routeGeneration) {status('Ruta no disponible');message(`No se pudo actualizar la ruta: ${e.message}. Revisa la conexión.`,true);}}
+    finally {if(generation===routeGeneration) calculating=false;}
   }
   function beginGps() {
     if(watch!==null) return;
@@ -129,6 +137,9 @@
   }
   function start(pedido) {
     if(!pedido || !Number.isFinite(Number(pedido.lat)) || !Number.isFinite(Number(pedido.lng))) {showToast('Este pedido no tiene coordenadas válidas','danger');return;}
+    // No reutilizar instrucciones o geometría del pedido anterior.
+    routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;lastVoice='';
+    removeLayer(line);line=null;removeArrows(arrows);
     destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)]};
     panel.hidden=false; window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
     beginGps(); if(freshGps()) calculate();
@@ -136,16 +147,35 @@
   }
   function back() {
     if(!startLocation?.every(Number.isFinite)) {message('Configura primero el punto de salida.');return;}
+    routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;removeLayer(line);line=null;removeArrows(arrows);
     destinationIsBase=true; target={id:null,coords:[...startLocation]}; arrived=false;
     panel.hidden=false; window.v3Navigate?.('map'); beginGps(); calculate();
   }
-  function stop() {target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
+  function stop() {routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
   function deliver() {
     if(!target?.id) {message('Estás navegando al punto de salida, no a un pedido.');return;}
-    const p=pedidos.find(p=>p.id===target.id);if(!p)return;
+    const currentId=target.id;
+    const p=pedidos.find(p=>p.id===currentId);if(!p)return;
     if(!confirm(`¿Confirmas que entregaste el pedido #${p.number}?`))return;
     p.status='entregado';p.deliveredAt=new Date().toISOString();updatePedidoMarker(p);saveState();renderPedidoList();window.v3Refresh?.();
-    stop();showToast('Entrega registrada. Selecciona el siguiente pedido.','success');
+    // La lista de pedidos conserva el orden manual/optimizado aprobado por el usuario.
+    const pending=getRoutePedidos();
+    const next=pending[0];
+    if(autoNextCheckbox.checked && next) {
+      // No elegir silenciosamente otra parada cuando la siguiente carece de coordenadas.
+      if(!Number.isFinite(Number(next.lat)) || !Number.isFinite(Number(next.lng))) {
+        stop();showToast(`Entrega registrada. El pedido #${next.number} requiere verificar su ubicación.`, 'info', 6000);return;
+      }
+      stop();start(next);
+      showToast(`Entrega #${p.number} completada. Navegando al pedido #${next.number}.`, 'success', 5000);
+      return;
+    }
+    stop();
+    if(!next) {
+      showToast('¡Todas las entregas están completadas! Puedes regresar a base.', 'success', 6000);
+    } else {
+      showToast('Entrega registrada. Selecciona el siguiente pedido.', 'success');
+    }
   }
   $('nav-v4-lost').addEventListener('click',()=>{if(!target)return;lastReroute=Date.now();message('Buscando un nuevo recorrido desde tu ubicación.',true);calculate();});
   $('nav-v4-repeat').addEventListener('click',()=>announce($('nav-v4-instruction').textContent,true));
