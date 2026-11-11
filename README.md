@@ -1,3 +1,11 @@
+# DOMICILIO V5 — Sistema inteligente de reparto
+
+La **versión 5** integra los cambios de navegación, memoria local, revisión de direcciones, GPS de llegada, propuesta unificada y diseño adaptativo. Para detalles funcionales y limitaciones consulta [MEJORAS_V5.md](MEJORAS_V5.md) y [INSTALAR_V5.md](INSTALAR_V5.md).
+
+**Advertencia:** no sustituye señales viales ni ofrece datos de tráfico en tiempo real. La navegación web en segundo plano no está garantizada. Siempre confirma las ubicaciones antes de conducir.
+
+---
+
 # DOMICILIO V3 — Asistente Inteligente de Reparto
 
 Aplicación moderna para repartidores y gestión inteligente de entregas en Ciénaga, Magdalena.

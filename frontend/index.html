@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="theme-color" content="#6D28D9" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>DOMICILIO V4 · Asistente Inteligente de Reparto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V4</span>
+            <span class="brand-title">DOMICILIO V5</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -58,6 +58,7 @@
           <i data-lucide="moon" id="theme-icon"></i>
         </button>
 
+        <button type="button" id="v5-mobile-end-shift" class="header-icon-btn v5-mobile-end" title="Finalizar jornada" aria-label="Finalizar jornada"><i data-lucide="log-out"></i></button>
         <!-- Perfil y Avatar del Repartidor -->
         <div class="user-profile-menu-wrap">
           <button type="button" id="user-menu-btn" class="user-profile-btn" aria-label="Menú de repartidor" title="Perfil de Repartidor">
@@ -457,15 +458,17 @@
             <label for="bulk-input">Lista de domicilios (una parada por bloque: dirección y, opcionalmente, nombre en la línea siguiente)</label>
             <textarea id="bulk-input" rows="6" placeholder="Calle 12 # 13-04&#10;Bienestar Familiar&#10;&#10;Carrera 11A # 8A-23&#10;Alcaldía Municipal"></textarea>
             <div class="bulk-actions">
-              <button id="bulk-parse" type="button" class="btn btn-purple-primary">Analizar lista</button>
+              <button id="bulk-parse" type="button" class="btn btn-outline btn-sm">Vista previa de mi lista (opcional)</button>
               <label class="btn btn-secondary bulk-upload" for="bulk-file">📁 Importar Excel / CSV / TXT</label>
               <input id="bulk-file" type="file" accept=".xlsx,.xls,.csv,.txt" hidden>
               <button id="bulk-voice" type="button" class="btn btn-secondary">🎙 Dictar direcciones</button>
             </div>
             <p id="bulk-status" role="status" aria-live="polite">Puedes cargar varias direcciones a la vez. Ningún pedido se guardará sin tu aprobación.</p>
             <div id="bulk-results"></div>
-            <div class="bulk-actions">
-              <button id="bulk-verify" type="button" class="btn btn-secondary" disabled>1. Verificar ubicaciones</button>
+            <p class="v5-explainer">Pega tus direcciones y toca «Optimizar toda mi ruta». Si no sabemos dónde está una casa, la dejamos en tu lista para que la marques con el GPS al llegar.</p>
+            <button type="button" class="btn btn-purple-primary btn-lg" id="v5-optimize-orders">🧭 Optimizar toda mi ruta</button>
+            <div class="bulk-actions v5-legacy-actions">
+              <button id="bulk-verify" type="button" class="btn btn-secondary" disabled hidden>Verificar ubicaciones</button>
               <button id="bulk-optimize" type="button" class="btn btn-purple-primary">2. Calcular ruta y solicitar aprobación</button>
             </div>
             <div id="bulk-proposal" class="bulk-proposal hidden"></div>
@@ -612,22 +615,19 @@
             <!-- Acciones de Enrutamiento y Optimización -->
             <div class="card route-panel-card">
               <h3 class="panel-card-title"><i data-lucide="zap" class="text-orange"></i> Optimización y Trazado</h3>
+              <p class="v5-explainer">Un solo toque: revisamos tu lista, buscamos ubicaciones conocidas, calculamos el mejor recorrido disponible y dibujamos la ruta. Los pedidos sin GPS nunca se pierden.</p>
               <div class="route-action-buttons-group">
-                <button id="optimize-route-button" type="button" class="btn btn-purple-primary btn-lg">
-                  <i data-lucide="zap"></i>
-                  <span>Optimizar pedidos actuales (OSRM)</span>
-                </button>
-                <button id="review-current-orders" type="button" class="btn btn-purple-outline btn-lg">✏️ Revisar direcciones guardadas</button>
-                <button id="manual-route-order" type="button" class="btn btn-purple-outline btn-lg">↕ Ordenar pedidos manualmente</button>
-                <button id="suggest-route" type="button" class="btn btn-purple-outline btn-lg">
-                  <i data-lucide="git-merge"></i>
-                  <span>Sugerir orden por carretera (OSRM)</span>
-                </button>
-                <button id="calculate-route-button" type="button" class="btn btn-secondary btn-lg">
-                  <i data-lucide="compass"></i>
-                  <span>Trazar ruta en el mapa</span>
-                </button>
+                <button id="v5-optimize-all" type="button" class="btn btn-purple-primary btn-lg">🧭 Optimizar toda mi ruta</button>
               </div>
+              <p class="v5-helper" id="v5-plan-status" role="status" aria-live="polite">Puedes pegar direcciones nuevas o usar los pedidos que ya guardaste.</p>
+              <details class="v5-details"><summary>Editar una dirección o cambiar el orden manualmente</summary>
+                <p>Opciones adicionales por si necesitas corregir un pedido o cambiar su posición.</p>
+                <button id="review-current-orders" type="button" class="btn btn-outline btn-sm">Corregir direcciones</button>
+                <button id="manual-route-order" type="button" class="btn btn-outline btn-sm">Cambiar orden manual</button>
+              </details>
+              <button id="optimize-route-button" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+              <button id="suggest-route" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+              <button id="calculate-route-button" type="button" hidden aria-hidden="true" tabindex="-1"></button>
               <div id="v43-current-orders" class="suggestion-box" aria-live="polite"></div>
               <div id="suggestion-preview" class="suggestion-box" aria-live="polite"></div>
               <div id="address-feedback" class="address-feedback hidden" aria-live="polite"></div>
@@ -648,7 +648,7 @@
           <div class="screen-page-header">
             <div>
               <h2 class="screen-page-title">Mapa de Navegación y Entregas</h2>
-              <p class="screen-page-subtitle">Visualización completa con tráfico, paradas y GPS en vivo</p>
+              <p class="screen-page-subtitle">Mapa de entregas y ubicación GPS; tráfico en tiempo real no disponible</p>
             </div>
             <div class="screen-header-actions">
               <button type="button" id="fullscreen-map-action" class="btn btn-purple-outline btn-sm">
@@ -965,6 +965,7 @@
     <script src="/static/v3.js"></script>
     <script src="/static/navigation.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script defer src="/static/bulk.js"></script>
+    <script defer src="/static/bulk.js?v=5"></script>
+    <script defer src="/static/v5.js?v=5"></script>
   </body>
 </html>

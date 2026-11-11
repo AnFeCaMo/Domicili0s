@@ -105,7 +105,7 @@
     status(`Punto del pedido ${idx+1} seleccionado. ${draft.filter(x=>x.checked).length}/${draft.length} ubicaciones listas para calcular la ruta.`);
     return true;
   };
-  $('bulk-parse').onclick=()=>{try{draft=uniqueRows(parseLines(input.value));preview();}catch(e){status(e.message,true);}};
+  $('bulk-parse').onclick=()=>{try{draft=uniqueRows(parseLines(input.value));input.dataset.v5PreviewSource=input.value.trim();preview();}catch(e){status(e.message,true);}};
   file.addEventListener('change',async()=>{
     const selected=file.files?.[0]; if(!selected)return;
     try {
@@ -243,6 +243,21 @@
     proposal=null;draft=[];input.value='';results.replaceChildren();$('bulk-proposal').classList.add('hidden');
     status('Pedidos guardados y nueva ruta aplicada.');
   }
+
+  // V5: el botón único utiliza el mismo parser sin exigir geolocalización previa.
+  window.domicilioBulkV5 = {
+    getDraft() {
+      const source=input.value.trim();
+      if (draft.length && input.dataset.v5PreviewSource === source) return draft.map(row=>({...row}));
+      if (source) return uniqueRows(parseLines(source));
+      return draft.map(row=>({...row}));
+    },
+    clear() {
+      draft=[]; proposal=null; mapPickRow=null; input.value='';delete input.dataset.v5PreviewSource;results.replaceChildren();
+      $('bulk-proposal')?.classList.add('hidden');
+      status('La lista se agregó a tu jornada. Los domicilios sin GPS siguen pendientes de ubicación.');
+    }
+  };
   const voice=$('bulk-voice');let recognition;
   voice.onclick=()=>{
     const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;

@@ -87,3 +87,11 @@ No se modificó Render ni GitHub. Se entrega un archivo comprimido sin la carpet
 - El importador permite seleccionar en el mapa la ubicación de cada dirección cuando Nominatim no la reconoce. La elección es explícita y debe revisarse.
 - El botón de calcular indica las filas no verificadas; no genera rutas basadas en direcciones sin coordenadas.
 - El servicio OSRM público no incluye tráfico en vivo y la optimización depende de la calidad de los puntos verificados.
+
+## V5 — avisos de voz por proximidad a maniobras
+- En navegación GPS, deja de repetir distancias cada 10 m. Anuncia un giro cuando se aproxima a ~100 m, ~50 m y cerca del cruce (~22 m), una sola vez por hito.
+- Omite locuciones repetidas de «continúa derecho» en tramos sin cambios de vía; mantiene los detalles visuales en el mapa.
+- Reinicia el estado de anuncios al calcular una nueva ruta o cambiar de pedido.
+- Reduce avisos ante GPS impreciso y limita la frecuencia de voz; los umbrales son aproximados y dependen de precisión GPS y latencia.
+- El botón «Repetir» conserva la posibilidad de oír otra vez la indicación actual.
+- Prueba: `node tests/test_v5_voice.js`.

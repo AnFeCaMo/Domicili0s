@@ -2928,3 +2928,44 @@ input:focus, textarea:focus, select:focus {
 .v43-existing-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;border:1px solid var(--border,#ddd);border-radius:12px}
 .v43-existing-row input{flex:1 1 155px;min-width:120px;padding:10px;border:1px solid #a8a8af;border-radius:8px}
 .v43-existing-row small{color:#965c13}
+
+/* DOMICILIO V5 — diseño adaptable, controles claros */
+.v5-explainer,.v5-helper{line-height:1.55;font-size:.94rem;color:var(--text-secondary);margin:.5rem 0 1rem}
+.v5-details{margin-top:12px;padding:12px;border:1px solid var(--border-card);border-radius:12px}
+.v5-details summary{cursor:pointer;font-weight:600;margin-bottom:4px}
+.v5-details button{margin:6px 5px 0 0}
+#v5-optimize-all,#v5-optimize-orders{width:100%;min-height:52px;white-space:normal;text-wrap:balance}
+.v5-mobile-end{display:none}
+.v5-plan-panel{border:1px solid var(--border-card);background:var(--bg-card);padding:14px;border-radius:12px;margin:10px 0;line-height:1.5}
+.v5-plan-panel button{margin:8px 8px 4px 0;min-height:44px}
+.v5-plan-panel ol{padding-left:26px;margin:10px 0}
+.v5-plan-panel li{padding:4px 0}
+.v5-muted{color:var(--text-secondary);font-size:.9rem}
+.v5-warning{color:#a35a07;font-weight:600}
+@media(max-width:760px){
+ .app-top-header{display:flex!important;flex-wrap:wrap;gap:6px;min-height:58px;height:auto!important;padding:6px 10px!important;align-items:center;max-width:100vw}
+ .header-left{flex:1 1 auto;min-width:0;gap:6px!important}
+ .header-right{display:flex!important;flex:0 0 auto;gap:4px!important;align-items:center;min-width:0}
+ .brand-subtitle,.brand-version-pill,.user-details,.user-chevron,.status-indicator-text{display:none!important}
+ .brand-title{font-size:.91rem!important;white-space:nowrap}
+ .brand-badge-icon{display:none!important}
+ .header-icon-btn{width:36px!important;min-width:36px!important;height:36px!important;padding:6px!important}
+ .v5-mobile-end{display:inline-flex!important;align-items:center;justify-content:center}
+ .user-profile-menu-wrap{display:block!important;position:relative!important}
+ .user-profile-btn{padding:3px!important;min-width:37px!important;width:38px!important;height:38px!important}
+ .user-dropdown-menu{position:absolute!important;z-index:10002!important;right:0!important;left:auto!important;min-width:235px!important}
+ .header-status-pill{padding:0!important;min-width:12px!important;max-width:16px!important;border:0!important;background:transparent!important}
+ .app-body-wrapper,.app-main-content,.v3-view-screen{min-width:0;max-width:100vw}
+ .route-panel-card,.bulk-card{min-width:0;overflow-wrap:anywhere}
+ .route-action-buttons-group{display:block!important}
+ .v5-plan-panel{padding:12px}
+ .bottom-mobile-nav{z-index:950}
+}
+@media(max-width:365px){.header-right #notifications-btn{display:none!important}.brand-title{font-size:.8rem!important}}
+/* El único botón principal sustituye el flujo masivo de varios pasos. */
+.v5-legacy-actions,#bulk-parse,#bulk-proposal{display:none!important}
+
+/* En Inicio solo tres acciones principales; los demás accesos siguen en las pestañas. */
+#home-quick-return,#home-quick-stats{display:none!important}
+.quick-actions-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+@media(max-width:600px){.quick-actions-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}

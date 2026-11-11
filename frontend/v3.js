@@ -527,7 +527,7 @@
 
   $('home-quick-optimize')?.addEventListener('click', () => {
     navigate('routes');
-    proposeRouteOrder();
+    window.domicilioV5?.optimize();
   });
 
   $('home-quick-return')?.addEventListener('click', () => {

@@ -183,11 +183,11 @@ function renderPedidoList() {
         <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
           <div class="pedido-stop-badge">#${pedido.number}</div>
           <div class="pedido-card-info">
-            <h4 class="pedido-customer-name">${pedido.name || 'Cliente sin nombre'}</h4>
+            <h4 class="pedido-customer-name">${String(pedido.name || 'Cliente sin nombre').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</h4>
             <div class="pedido-address-text">
-              <span>📍 ${pedido.address || 'Ubicación seleccionada en el mapa'}</span>
+              <span>📍 ${String(pedido.address || 'Ubicación pendiente de confirmar').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span>
             </div>
-            ${pedido.reference ? `<div class="pedido-reference-text">Ref.: ${pedido.reference}</div>` : ''}
+            ${pedido.reference ? `<div class="pedido-reference-text">Ref.: ${String(pedido.reference).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</div>` : ''}
           </div>
         </div>
         <span class="badge ${statusClass}">${statusLabel}</span>
@@ -230,6 +230,12 @@ function renderPedidoList() {
     navigateBtn.textContent = '🧭 Ir al pedido';
     navigateBtn.addEventListener('click', (e) => { e.stopPropagation(); window.domicilioNav?.start(pedido); });
     buttonsGrid.appendChild(navigateBtn);
+    const captureGps=document.createElement('button');
+    captureGps.type='button';captureGps.className='btn btn-outline btn-sm';
+    captureGps.textContent='📍 Estoy en esta dirección';
+    captureGps.title='Al llegar y estando detenido: guardar la ubicación real de este domicilio';
+    captureGps.onclick=e=>{e.stopPropagation();window.domicilioV5?.captureAtOrder(pedido);};
+    buttonsGrid.appendChild(captureGps);
 
     // 2. Editar Pedido
     const editBtn = document.createElement('button');
@@ -459,7 +465,7 @@ function renderRouteSummary(data, routeOrders = []) {
         <div><strong>Paradas activas:</strong> ${pendingCount}</div>
       </div>
       <div style="font-size: 0.88rem; color: var(--text-secondary);">
-        <strong>Secuencia óptima recomendada:</strong>
+        <strong>Secuencia recomendada (según datos disponibles):</strong>
         <ol style="margin-left: 20px; margin-top: 6px;">
           ${routeOrders.map(p => `<li>#${p.number} — ${p.name || p.address || 'Sin nombre'}</li>`).join('')}
         </ol>
@@ -511,20 +517,16 @@ function loadSavedState() {
       if (
         typeof pedido.id !== 'string' ||
         !Number.isInteger(Number(pedido.number)) ||
-        !Number.isFinite(Number(pedido.lat)) ||
-        !Number.isFinite(Number(pedido.lng)) ||
-        Number(pedido.lat) < -90 ||
-        Number(pedido.lat) > 90 ||
-        Number(pedido.lng) < -180 ||
-        Number(pedido.lng) > 180
+        (pedido.lat !== null && pedido.lat !== undefined && (!Number.isFinite(Number(pedido.lat)) || Math.abs(Number(pedido.lat)) > 90)) ||
+        (pedido.lng !== null && pedido.lng !== undefined && (!Number.isFinite(Number(pedido.lng)) || Math.abs(Number(pedido.lng)) > 180))
       ) {
         throw new Error('Se encontró un pedido guardado con datos inválidos.');
       }
       return {
         ...pedido,
         number: Number(pedido.number),
-        lat: Number(pedido.lat),
-        lng: Number(pedido.lng),
+        lat: pedido.lat == null ? null : Number(pedido.lat),
+        lng: pedido.lng == null ? null : Number(pedido.lng),
         status: ['pendiente', 'en_ruta', 'entregado', 'fallido'].includes(pedido.status)
           ? pedido.status
           : 'pendiente',
@@ -548,7 +550,7 @@ function loadSavedState() {
   } catch (error) {
     console.error('No se pudieron restaurar los datos guardados.', error);
     try {
-      localStorage.removeItem('domicilios-cienaga-state');
+      // Conservamos el respaldo local incluso si algún pedido antiguo resulta inválido.
     } catch (storageError) {
       console.error('No se pudo limpiar el estado local inválido.', storageError);
     }
@@ -688,6 +690,7 @@ function updatePedidoMarker(pedido) {
     pedidoMarkers.delete(pedido.id);
   }
 
+  if (!Number.isFinite(pedido.lat) || !Number.isFinite(pedido.lng)) return;
   const marker = L.marker([pedido.lat, pedido.lng], {
     title: formatPedidoText(pedido),
     opacity: pedido.status === 'entregado' ? 0.45 : 1.0,
@@ -715,11 +718,13 @@ async function calculateRoute() {
   }
 
   calculateRouteButton.disabled = true;
-  showToast('Trazando ruta con OSRM...', 'info');
+  showToast('Dibujando tu recorrido por calles...', 'info');
 
-  const origin = gpsPosition || startLocation;
+  const origin = gpsPosition || window.domicilioV5?.lastConfirmed?.coords || startLocation;
   const finalPoint = window.v3Destination?.point || ((window.v3Destination?.mode === 'start' || returnToStartInput.checked) ? startLocation : null);
-  const routePoints = [origin, ...activePedidos.map(p => [p.lat, p.lng]), ...(finalPoint ? [finalPoint] : [])];
+  const known = activePedidos.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !p.needsLocationReview);
+  if (!known.length) { clearRoute(); calculateRouteButton.disabled=false; routeSummary.textContent = 'Todos los pedidos siguen en tu lista. Falta ubicar alguno para dibujar una ruta GPS real.'; return; }
+  const routePoints = [origin, ...known.map(p => [p.lat, p.lng]), ...(finalPoint ? [finalPoint] : [])];
 
   const coordinatesString = routePoints.map(([lat, lng]) => `${lng},${lat}`).join(';');
   const url = `https://router.project-osrm.org/route/v1/driving/${coordinatesString}?overview=full&geometries=geojson&steps=false`;
@@ -747,8 +752,10 @@ async function calculateRoute() {
 
     mapInstance.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
     window.domicilioNav?.showOverviewArrows(route);
-    currentRouteOrder = [...activePedidos];
-    renderRouteSummary(route, activePedidos);
+    currentRouteOrder = [...known];
+    renderRouteSummary(route, known);
+    const missing=activePedidos.length-known.length;
+    if(missing && routeSummary) routeSummary.insertAdjacentText('beforeend', ` · ${missing} pedido(s) sin GPS permanecen en la lista (orden estimado).`);
     showToast('Ruta calculada y trazada con éxito', 'success');
   } catch (error) {
     showToast(error.message, 'danger');

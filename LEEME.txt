@@ -1,0 +1,6 @@
+PARCHE DE NAVEGACION POR VOZ PARA DOMICILIO V5
+Incluye frontend/navigation.js y tests/test_v5_voice.js
+No es la version V5 completa: instala solamente la mejora de avisos por proximidad.
+Aplicar sobre el repositorio existente, no reemplazar el proyecto entero.
+Validar con: node --check frontend/navigation.js && node tests/test_v5_voice.js
+Antes de conducir probar inmovilizado y revisar la precision del GPS y el mapa.
