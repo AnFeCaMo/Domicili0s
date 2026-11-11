@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="theme-color" content="#6D28D9" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>DOMICILIO V3 · Asistente Inteligente de Reparto</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  </head>
+  <body>
+    <!-- ENCABEZADO SUPERIOR MORADO (DEGRADADO PROFESIONAL) -->
+    <header class="app-top-header">
+      <div class="header-left">
+        <button type="button" id="sidebar-toggle-btn" class="header-icon-btn sidebar-toggle-btn" aria-label="Alternar menú lateral" title="Menú">
+          <i data-lucide="menu"></i>
+        </button>
+        <div class="brand-badge-icon">
+          <i data-lucide="bike"></i>
+        </div>
+        <div class="brand-titles">
+          <div class="brand-title-row">
+            <span class="brand-title">DOMICILIO V3</span>
+            <span class="brand-version-pill">PRO</span>
+          </div>
+          <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Indicador de Conexión -->
+        <div id="connectivity" class="header-status-pill online" role="status" title="Estado de la conexión a internet">
+          <span class="status-indicator-dot"></span>
+          <span class="status-indicator-text">Conectado</span>
+        </div>
+
+        <!-- Botón de Notificaciones -->
+        <button type="button" id="notifications-btn" class="header-icon-btn" aria-label="Notificaciones" title="Notificaciones">
+          <i data-lucide="bell"></i>
+          <span class="notification-badge" id="notif-badge">0</span>
+        </button>
+
+        <!-- Botón Modo Oscuro / Claro -->
+        <button type="button" id="theme-toggle" class="header-icon-btn" aria-label="Cambiar tema visual" title="Tema claro/oscuro">
+          <i data-lucide="moon" id="theme-icon"></i>
+        </button>
+
+        <!-- Perfil y Avatar del Repartidor -->
+        <div class="user-profile-menu-wrap">
+          <button type="button" id="user-menu-btn" class="user-profile-btn" aria-label="Menú de repartidor" title="Perfil de Repartidor">
+            <div class="user-avatar">
+              <span id="user-avatar-initials">AC</span>
+            </div>
+            <div class="user-details">
+              <span class="user-name" id="user-display-name">Andrés C.</span>
+              <span class="user-role">Repartidor</span>
+            </div>
+            <i data-lucide="chevron-down" class="user-chevron"></i>
+          </button>
+
+          <!-- Menú Desplegable de Usuario -->
+          <div id="user-dropdown-menu" class="user-dropdown-menu hidden">
+            <div class="dropdown-header">
+              <strong id="dropdown-user-name">Ing. Andrés Camacho</strong>
+              <small class="text-muted">Ciénaga, Magdalena</small>
+            </div>
+            <hr class="dropdown-divider" />
+            <button type="button" class="dropdown-item" id="menu-goto-stats">
+              <i data-lucide="bar-chart-2"></i>
+              <span>Ver Estadísticas</span>
+            </button>
+            <button type="button" class="dropdown-item" id="menu-goto-history">
+              <i data-lucide="history"></i>
+              <span>Historial de Jornadas</span>
+            </button>
+            <button type="button" class="dropdown-item" id="menu-goto-settings">
+              <i data-lucide="settings"></i>
+              <span>Configuración</span>
+            </button>
+            <hr class="dropdown-divider" />
+            <button type="button" class="dropdown-item text-danger" id="menu-end-shift">
+              <i data-lucide="power"></i>
+              <span>Finalizar Jornada</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ESTRUCTURA PRINCIPAL DE LA APLICACIÓN -->
+    <div class="app-body-wrapper">
+      <!-- MENÚ LATERAL EN COMPUTADORES Y TABLETAS -->
+      <aside class="app-sidebar" id="app-sidebar">
+        <nav class="sidebar-nav" aria-label="Navegación principal de escritorio">
+          <button type="button" class="sidebar-item active" data-nav="home">
+            <i data-lucide="layout-dashboard"></i>
+            <span class="sidebar-label">Inicio</span>
+          </button>
+          <button type="button" class="sidebar-item" data-nav="orders">
+            <i data-lucide="package"></i>
+            <span class="sidebar-label">Pedidos</span>
+            <span class="sidebar-badge" id="sidebar-orders-badge">0</span>
+          </button>
+          <button type="button" class="sidebar-item" data-nav="routes">
+            <i data-lucide="route"></i>
+            <span class="sidebar-label">Rutas</span>
+          </button>
+          <button type="button" class="sidebar-item" data-nav="map">
+            <i data-lucide="map"></i>
+            <span class="sidebar-label">Mapa</span>
+          </button>
+          <button type="button" class="sidebar-item" data-nav="ai">
+            <i data-lucide="brain"></i>
+            <span class="sidebar-label">Cerebro IA</span>
+          </button>
+          <button type="button" class="sidebar-item" data-nav="history">
+            <i data-lucide="clock"></i>
+            <span class="sidebar-label">Historial</span>
+          </button>
+          <button type="button" class="sidebar-item" data-nav="stats">
+            <i data-lucide="bar-chart-3"></i>
+            <span class="sidebar-label">Estadísticas</span>
+          </button>
+          <button type="button" class="sidebar-item" data-nav="settings">
+            <i data-lucide="sliders-horizontal"></i>
+            <span class="sidebar-label">Configuración</span>
+          </button>
+        </nav>
+
+        <!-- Jornada activa -->
+        <div class="sidebar-footer">
+          <div class="sidebar-shift-card">
+            <div class="sidebar-shift-heading">
+              <i data-lucide="clock-3"></i>
+              <strong>Jornada activa</strong>
+            </div>
+            <span class="sidebar-shift-time">Tiempo: <span id="sidebar-shift-timer">0h 0m</span></span>
+            <button type="button" id="end-shift-btn" class="sidebar-end-shift-btn">
+              <i data-lucide="power"></i>
+              <span>Finalizar jornada</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CONTENIDO PRINCIPAL -->
+      <main class="app-main-content">
+        <!-- PANTALLA 1: INICIO (DASHBOARD COMPLETO CON DISTRIBUCIÓN DEL MODELO VISUAL) -->
+        <section id="home-view" class="v3-view-screen">
+          <!-- 1. Panel de Bienvenida y Jornada Activa -->
+          <div class="welcome-banner-card">
+            <div class="welcome-banner-info">
+              <div class="welcome-badge-tag">
+                <span class="pulse-dot"></span>
+                <span>Jornada Activa</span>
+              </div>
+              <h1 id="home-greeting-heading">¡Buenas tardes, Andrés!</h1>
+              <p class="welcome-lead">Todo listo para continuar con tus domicilios.</p>
+              <div class="welcome-meta-row">
+                <span class="meta-item"><i data-lucide="calendar"></i> <span id="live-date">Cargando fecha...</span></span>
+                <span class="meta-item"><i data-lucide="clock"></i> <span id="live-time">00:00:00</span></span>
+                <span class="meta-item"><i data-lucide="timer"></i> <span id="shift-timer-display">Tiempo en ruta: 0h 0m</span></span>
+              </div>
+            </div>
+            <div class="welcome-banner-actions">
+              <button type="button" id="resume-work" class="btn btn-action-accent">
+                <i data-lucide="play"></i>
+                <span>Continuar mi jornada</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Cinco Tarjetas Horizontales de Estadísticas (#dashboard) -->
+          <div id="dashboard" class="stats-overview-grid">
+            <!-- 1. Pendientes (Icono Morado) -->
+            <div class="stat-box stat-purple">
+              <div class="stat-box-icon"><i data-lucide="clock"></i></div>
+              <div class="stat-box-data">
+                <span class="stat-box-number" id="dash-pending-count">0</span>
+                <span class="stat-box-label">Pendientes</span>
+              </div>
+            </div>
+
+            <!-- 2. Completados (Icono Verde) -->
+            <div class="stat-box stat-green">
+              <div class="stat-box-icon"><i data-lucide="check-circle-2"></i></div>
+              <div class="stat-box-data">
+                <span class="stat-box-number" id="dash-done-count">0</span>
+                <span class="stat-box-label">Completados</span>
+              </div>
+            </div>
+
+            <!-- 3. En ruta (Icono Naranja) -->
+            <div class="stat-box stat-orange">
+              <div class="stat-box-icon"><i data-lucide="bike"></i></div>
+              <div class="stat-box-data">
+                <span class="stat-box-number" id="dash-route-count">0</span>
+                <span class="stat-box-label">En ruta</span>
+              </div>
+            </div>
+
+            <!-- 4. Distancia estimada (Icono Azul) -->
+            <div class="stat-box stat-blue">
+              <div class="stat-box-icon"><i data-lucide="navigation"></i></div>
+              <div class="stat-box-data">
+                <span class="stat-box-number" id="dash-distance-val">0.0 km</span>
+                <span class="stat-box-label">Distancia estimada</span>
+              </div>
+            </div>
+
+            <!-- 5. Tiempo estimado (Icono Morado) -->
+            <div class="stat-box stat-purple-dark">
+              <div class="stat-box-icon"><i data-lucide="timer"></i></div>
+              <div class="stat-box-data">
+                <span class="stat-box-number" id="dash-time-val">0 min</span>
+                <span class="stat-box-label">Tiempo estimado</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Siguiente Entrega y Mapa (Tarjeta Grande en 2 Columnas) -->
+          <div class="next-delivery-map-card">
+            <!-- Columna Izquierda: Información de la Siguiente Entrega -->
+            <div class="delivery-details-col">
+              <div class="col-section-header">
+                <div class="section-badge-purple">
+                  <i data-lucide="map-pin"></i>
+                  <span>Siguiente entrega</span>
+                </div>
+                <span class="stop-number-pill" id="next-stop-badge">Parada #1</span>
+              </div>
+
+              <div class="delivery-customer-box">
+                <h2 id="next-customer-name">Sin pedidos pendientes</h2>
+                <div class="delivery-address-row">
+                  <i data-lucide="navigation"></i>
+                  <p id="next-customer-address">No hay pedidos registrados o todos han sido entregados.</p>
+                </div>
+                <p id="next-customer-reference" class="delivery-ref-text"></p>
+                <div class="delivery-status-badge-wrap">
+                  <span class="status-pill-badge" id="next-customer-status">Al día</span>
+                </div>
+              </div>
+
+              <div class="delivery-action-buttons">
+                <button type="button" id="btn-go-to-destination" class="btn btn-purple-primary btn-lg">
+                  <i data-lucide="compass"></i>
+                  <span>Ir al destino</span>
+                </button>
+                <button type="button" id="btn-view-on-map-home" class="btn btn-outline btn-lg">
+                  <i data-lucide="map"></i>
+                  <span>Ver en mapa</span>
+                </button>
+              </div>
+
+              <div id="home-map" class="home-map-note">
+                <i data-lucide="info"></i>
+                <span>Mapa interactivo conectado a Leaflet y OpenStreetMap en tiempo real.</span>
+              </div>
+            </div>
+
+            <!-- Columna Derecha: Mapa Interactivo -->
+            <div class="delivery-map-col">
+              <div class="map-container-header">
+                <span class="map-stops-counter" id="home-map-stops-indicator">0 paradas activas</span>
+                <div class="map-controls-quick">
+                  <button type="button" id="home-map-locate-btn" class="map-btn-icon" title="Centrar en mi GPS">
+                    <i data-lucide="crosshair"></i>
+                  </button>
+                  <button type="button" id="home-map-fullscreen-btn" class="map-btn-icon" title="Pantalla completa">
+                    <i data-lucide="maximize-2"></i>
+                  </button>
+                </div>
+              </div>
+              <div id="home-embedded-map" class="embedded-leaflet-map" aria-label="Mapa de entregas"></div>
+            </div>
+          </div>
+
+          <!-- 4. Acciones Rápidas (Tarjeta Inferior con 5 Botones Grandes) -->
+          <div class="quick-actions-bar-card">
+            <h3 class="quick-actions-title">Acciones Rápidas</h3>
+            <div class="quick-actions-grid">
+              <!-- 1. Nuevo Pedido -->
+              <button type="button" id="home-quick-new-order" class="quick-action-tile">
+                <div class="tile-icon-wrap"><i data-lucide="plus-circle"></i></div>
+                <span class="tile-title">Nuevo pedido</span>
+                <span class="tile-desc">Registrar entrega</span>
+              </button>
+
+              <!-- 2. Optimizar Ruta -->
+              <button type="button" id="home-quick-optimize" class="quick-action-tile">
+                <div class="tile-icon-wrap"><i data-lucide="zap"></i></div>
+                <span class="tile-title">Optimizar ruta</span>
+                <span class="tile-desc">Secuencia óptima</span>
+              </button>
+
+              <!-- 3. Definir Regreso -->
+              <button type="button" id="home-quick-return" class="quick-action-tile">
+                <div class="tile-icon-wrap"><i data-lucide="corner-down-left"></i></div>
+                <span class="tile-title">Definir regreso</span>
+                <span class="tile-desc">Base o casa</span>
+              </button>
+
+              <!-- 4. Continuar Mi Jornada (Destacado con Verde Suave) -->
+              <button type="button" id="home-quick-continue" class="quick-action-tile tile-highlight-green">
+                <div class="tile-icon-wrap"><i data-lucide="navigation"></i></div>
+                <span class="tile-title">Continuar mi jornada</span>
+                <span class="tile-desc">Próxima parada</span>
+              </button>
+
+              <!-- 5. Ver Estadísticas -->
+              <button type="button" id="home-quick-stats" class="quick-action-tile">
+                <div class="tile-icon-wrap"><i data-lucide="bar-chart-2"></i></div>
+                <span class="tile-title">Ver estadísticas</span>
+                <span class="tile-desc">Métricas y avance</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 5. Tarjeta del Cerebro IA en la Pantalla de Inicio -->
+          <div class="ai-home-widget-card">
+            <div class="ai-widget-header">
+              <div class="ai-widget-title-group">
+                <div class="ai-icon-bubble">
+                  <i data-lucide="brain"></i>
+                </div>
+                <div>
+                  <h3 class="ai-widget-name">Cerebro IA</h3>
+                  <span class="ai-status-tag">● Motor de reglas local activo</span>
+                </div>
+              </div>
+              <button type="button" id="home-ai-expand-btn" class="btn btn-outline btn-sm">
+                <i data-lucide="message-square"></i>
+                <span>Abrir chat completo</span>
+              </button>
+            </div>
+            <p class="ai-widget-prompt-text">
+              Escribe o dicta una instrucción para agregar pedidos, consultar paradas u optimizar tu recorrido.
+            </p>
+            <div class="ai-quick-input-bar">
+              <input
+                type="text"
+                id="home-ai-input"
+                placeholder="Ej.: Agrega un pedido para Carlos en Calle 8 # 12-30..."
+                aria-label="Instrucción al Cerebro IA"
+              />
+              <button type="button" id="home-ai-mic-btn" class="btn-icon-purple" title="Dictar por voz">
+                <i data-lucide="mic"></i>
+              </button>
+              <button type="button" id="home-ai-send-btn" class="btn btn-purple-primary" title="Enviar instrucción">
+                <i data-lucide="send"></i>
+                <span>Enviar</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONTENEDOR WORKSPACE: PEDIDOS, RUTAS, MAPA, IA (Para compatibilidad con IDs existentes) -->
+        <div class="layout hidden" id="workspace" data-current="home">
+          <aside class="sidebar hidden" id="workspace-sidebar">
+            <header class="hero">
+              <h1>DOMICILIO V3</h1>
+              <p>Rutas inteligentes · uso personal</p>
+              <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
+            </header>
+          </aside>
+
+          <!-- SECCIÓN DE MAPA LEAFLET ORIGINAL (CONSERVADO CON SU ID "map") -->
+          <section class="map-panel" data-view="map">
+            <div class="map-floating-toolbar">
+              <button type="button" id="map-center-gps" class="map-tool-btn" title="Centrar en mi GPS">
+                <i data-lucide="crosshair"></i>
+              </button>
+              <button type="button" id="map-center-start" class="map-tool-btn" title="Centrar en restaurante / base">
+                <i data-lucide="store"></i>
+              </button>
+              <button type="button" id="map-expand" class="map-tool-btn" title="Ampliar pantalla completa">
+                <i data-lucide="maximize-2" id="map-expand-icon"></i>
+              </button>
+              <button type="button" id="map-card-toggle" class="map-tool-btn" title="Ver / ocultar tarjeta">
+                <i data-lucide="credit-card"></i>
+              </button>
+            </div>
+
+            <!-- Mapa Real ID="map" -->
+            <div id="map" aria-label="Mapa principal de Ciénaga"></div>
+
+            <!-- Tarjeta Inferior de Siguiente Entrega en el Mapa -->
+            <div id="map-delivery-card" class="map-delivery-card hidden"></div>
+          </section>
+        </div>
+
+        <!-- PANTALLA 2: GESTIÓN DE PEDIDOS -->
+        <section id="orders-view" class="v3-view-screen hidden">
+          <div class="screen-page-header">
+            <div>
+              <h2 class="screen-page-title">Gestión de Pedidos</h2>
+              <p class="screen-page-subtitle">Organiza, revisa y actualiza los domicilios de tu jornada</p>
+            </div>
+            <div class="screen-header-actions">
+              <button type="button" id="open-new-order-btn" class="btn btn-purple-primary">
+                <i data-lucide="plus"></i>
+                <span>Nuevo Pedido</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Barra de Herramientas y Filtros -->
+          <div class="card orders-toolbar-card">
+            <div class="toolbar-flex-row">
+              <div class="filter-chips-group" id="order-filter-chips">
+                <button type="button" class="filter-chip active" data-filter="all">Todos (<span id="filter-all-count">0</span>)</button>
+                <button type="button" class="filter-chip" data-filter="pendiente">Pendientes (<span id="filter-pending-count">0</span>)</button>
+                <button type="button" class="filter-chip" data-filter="en_ruta">En ruta (<span id="filter-route-count">0</span>)</button>
+                <button type="button" class="filter-chip" data-filter="entregado">Entregados (<span id="filter-done-count">0</span>)</button>
+              </div>
+
+              <div class="toolbar-tools-group">
+                <button type="button" id="new-map-order" class="btn btn-outline btn-sm">
+                  <i data-lucide="map-pin"></i>
+                  <span>Elegir en mapa</span>
+                </button>
+                <button type="button" id="gps-button" class="btn btn-outline btn-sm">
+                  <i data-lucide="crosshair"></i>
+                  <span>Activar GPS</span>
+                </button>
+                <label class="switch-toggle-label">
+                  <input type="checkbox" id="voice-guidance" />
+                  <span class="switch-ui"></span>
+                  <span class="switch-text"><i data-lucide="volume-2"></i> Voz</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="gps-status" class="gps-status-bar" aria-live="polite">
+              <i data-lucide="navigation-2"></i>
+              <span>GPS inactivo. Toca "Activar GPS" para seguimiento en tiempo real.</span>
+            </div>
+          </div>
+
+          <!-- Importación masiva con aprobación -->
+          <section id="bulk-orders" class="card bulk-card">
+            <div class="bulk-heading"><div><h2>📍 Organizar mi jornada</h2><p>Pega una lista completa, importa Excel/CSV/TXT o dicta direcciones. Se verifica y optimiza antes de guardar.</p></div></div>
+            <label for="bulk-input">Lista de domicilios (una parada por bloque: dirección y, opcionalmente, nombre en la línea siguiente)</label>
+            <textarea id="bulk-input" rows="6" placeholder="Calle 12 # 13-04&#10;Bienestar Familiar&#10;&#10;Carrera 11A # 8A-23&#10;Alcaldía Municipal"></textarea>
+            <div class="bulk-actions">
+              <button id="bulk-parse" type="button" class="btn btn-purple-primary">Analizar lista</button>
+              <label class="btn btn-secondary bulk-upload" for="bulk-file">📁 Importar Excel / CSV / TXT</label>
+              <input id="bulk-file" type="file" accept=".xlsx,.xls,.csv,.txt" hidden>
+              <button id="bulk-voice" type="button" class="btn btn-secondary">🎙 Dictar direcciones</button>
+            </div>
+            <p id="bulk-status" role="status" aria-live="polite">Puedes cargar varias direcciones a la vez. Ningún pedido se guardará sin tu aprobación.</p>
+            <div id="bulk-results"></div>
+            <div class="bulk-actions">
+              <button id="bulk-verify" type="button" class="btn btn-secondary" disabled>1. Verificar ubicaciones</button>
+              <button id="bulk-optimize" type="button" class="btn btn-purple-primary">2. Calcular ruta y solicitar aprobación</button>
+            </div>
+            <div id="bulk-proposal" class="bulk-proposal hidden"></div>
+            <p class="bulk-note">La próxima parada activa queda protegida. Se utilizan tiempos y distancias por carretera cuando OSRM está disponible. La ubicación y el orden se deben revisar antes de iniciar.</p>
+          </section>
+
+          <!-- Formulario de Pedido (ID "pedido-form-wrapper" y "pedido-form") -->
+          <section id="pedido-form-wrapper" class="card form-drawer-card hidden">
+            <div class="form-header-row">
+              <div class="form-title-wrap">
+                <i data-lucide="package-plus" class="text-purple"></i>
+                <h3 id="form-title">Registrar Nuevo Pedido</h3>
+              </div>
+              <button type="button" id="cancel-pedido-icon" class="icon-btn-ghost" aria-label="Cerrar formulario">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+
+            <form id="pedido-form">
+              <div class="form-row-2col">
+                <div class="form-field form-field-narrow">
+                  <label for="pedido-number">
+                    <span>Parada / # Pedido</span>
+                    <span class="required-indicator">*</span>
+                  </label>
+                  <input id="pedido-number" type="number" min="1" step="1" required placeholder="1" />
+                </div>
+
+                <div class="form-field">
+                  <label for="pedido-name">Nombre del cliente</label>
+                  <input id="pedido-name" type="text" maxlength="60" placeholder="Ej.: María Gómez" />
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="pedido-address">Dirección de entrega</label>
+                <div class="input-with-button-group">
+                  <input id="pedido-address" type="text" maxlength="240" placeholder="Ej.: Calle 12 # 15-40, Barrio Centro" />
+                  <button id="search-location-button" type="button" class="btn btn-purple-outline">
+                    <i data-lucide="search"></i>
+                    <span>Buscar</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="pedido-reference">Referencia adicional del domicilio</label>
+                <input id="pedido-reference" type="text" maxlength="180" placeholder="Ej.: Casa de dos pisos rejas blancas..." />
+              </div>
+
+              <div class="coords-selector-box">
+                <div class="coords-box-header">
+                  <span>Coordenadas seleccionadas</span>
+                  <button id="select-pedido-map" type="button" class="btn btn-xs btn-purple-outline">
+                    <i data-lucide="map-pin"></i>
+                    <span>Elegir en el mapa</span>
+                  </button>
+                </div>
+                <div class="coords-box-display">
+                  <i data-lucide="crosshair"></i>
+                  <strong id="selected-coordinates">Selecciona un punto en el mapa</strong>
+                </div>
+              </div>
+
+              <div class="form-buttons-row">
+                <button type="submit" class="btn btn-purple-primary btn-lg flex-1">
+                  <i data-lucide="check"></i>
+                  <span>Guardar Pedido</span>
+                </button>
+                <button id="cancel-pedido" type="button" class="btn btn-secondary btn-lg">
+                  <span>Cancelar</span>
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <!-- Lista de Pedidos en Tarjetas Grandes -->
+          <ul id="pedido-list" class="pedido-cards-list"></ul>
+        </section>
+
+        <!-- PANTALLA 3: RUTAS Y OPTIMIZACIÓN -->
+        <section id="routes-view" class="v3-view-screen hidden">
+          <div class="screen-page-header">
+            <div>
+              <h2 class="screen-page-title">Rutas y Secuencia de Entrega</h2>
+              <p class="screen-page-subtitle">Configura origen, optimiza la ruta y define tu regreso</p>
+            </div>
+          </div>
+
+          <div class="routes-config-layout">
+            <!-- Origen y Destino -->
+            <div class="card route-panel-card">
+              <h3 class="panel-card-title"><i data-lucide="store" class="text-purple"></i> Punto de Inicio (Restaurante / Base)</h3>
+              <div class="input-with-button-group">
+                <input id="start-address" type="text" placeholder="Dirección del restaurante..." />
+                <button id="search-start-button" type="button" class="btn btn-purple-outline">
+                  <i data-lucide="search"></i>
+                  <span>Buscar</span>
+                </button>
+              </div>
+              <div class="start-meta-row">
+                <button id="set-start-on-map-button" type="button" class="btn btn-outline btn-sm">
+                  <i data-lucide="map-pin"></i>
+                  <span>Seleccionar en el mapa</span>
+                </button>
+                <span id="start-location-display" class="coords-chip">11.00600, -74.24640</span>
+              </div>
+            </div>
+
+            <!-- Destino Final y Regreso -->
+            <div class="card route-panel-card">
+              <h3 class="panel-card-title"><i data-lucide="flag" class="text-blue"></i> Destino Final / Regreso</h3>
+              <div class="destination-config-block">
+                <div class="form-field">
+                  <label for="destination-mode">Modo de regreso al terminar las entregas</label>
+                  <select id="destination-mode" class="custom-select">
+                    <option value="none">Sin regreso (finalizar en el último cliente)</option>
+                    <option value="start">Regresar al punto de inicio (Restaurante)</option>
+                    <option value="saved">Regresar a un lugar guardado (ej.: Casa)</option>
+                    <option value="map">Elegir destino en el mapa</option>
+                  </select>
+                </div>
+
+                <div id="saved-destination-wrap" class="form-field" style="display: none;">
+                  <label for="saved-destination">Lugar guardado</label>
+                  <select id="saved-destination" class="custom-select"></select>
+                </div>
+
+                <div class="destination-buttons-row">
+                  <button id="save-place" type="button" class="btn btn-outline btn-sm">
+                    <i data-lucide="bookmark-plus"></i>
+                    <span>Guardar ubicación actual como lugar...</span>
+                  </button>
+                </div>
+                <p id="destination-feedback" class="feedback-msg"></p>
+
+                <label class="return-option">
+                  <input id="return-to-start" type="checkbox" />
+                  <span>Regresar al punto de partida al finalizar la ruta</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Acciones de Enrutamiento y Optimización -->
+            <div class="card route-panel-card">
+              <h3 class="panel-card-title"><i data-lucide="zap" class="text-orange"></i> Optimización y Trazado</h3>
+              <div class="route-action-buttons-group">
+                <button id="optimize-route-button" type="button" class="btn btn-purple-primary btn-lg">
+                  <i data-lucide="zap"></i>
+                  <span>Optimizar automáticamente (Proximidad)</span>
+                </button>
+                <button id="suggest-route" type="button" class="btn btn-purple-outline btn-lg">
+                  <i data-lucide="git-merge"></i>
+                  <span>Sugerir orden por carretera (OSRM)</span>
+                </button>
+                <button id="calculate-route-button" type="button" class="btn btn-secondary btn-lg">
+                  <i data-lucide="compass"></i>
+                  <span>Trazar ruta en el mapa</span>
+                </button>
+              </div>
+              <div id="suggestion-preview" class="suggestion-box"></div>
+              <div id="address-feedback" class="address-feedback hidden" aria-live="polite"></div>
+            </div>
+
+            <!-- Resumen de Itinerario -->
+            <div class="card route-panel-card">
+              <h3 class="panel-card-title"><i data-lucide="list-ordered" class="text-green"></i> Resumen de la Ruta</h3>
+              <div id="route-summary" class="route-summary-box">
+                <p class="text-secondary">Sin ruta calculada. Agrega pedidos y presiona "Trazar ruta".</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PANTALLA 4: MAPA A PANTALLA COMPLETA O ADAPTABLE -->
+        <section id="map-view" class="v3-view-screen hidden">
+          <div class="screen-page-header">
+            <div>
+              <h2 class="screen-page-title">Mapa de Navegación y Entregas</h2>
+              <p class="screen-page-subtitle">Visualización completa con tráfico, paradas y GPS en vivo</p>
+            </div>
+            <div class="screen-header-actions">
+              <button type="button" id="fullscreen-map-action" class="btn btn-purple-outline btn-sm">
+                <i data-lucide="maximize-2"></i>
+                <span>Pantalla completa</span>
+              </button>
+            </div>
+          </div>
+          <div class="full-map-wrapper card">
+            <div id="dedicated-map-container" class="dedicated-map-element" aria-label="Mapa completo de navegación"></div>
+          </div>
+        </section>
+
+        <!-- PANTALLA 5: CEREBRO IA (CONVERSACIÓN COMPLETA) -->
+        <section id="ai-view" class="v3-view-screen hidden">
+          <div class="chat-full-card card">
+            <div class="chat-full-header">
+              <div class="chat-header-agent">
+                <div class="agent-avatar"><i data-lucide="brain"></i></div>
+                <div>
+                  <h3 class="agent-name">Cerebro IA · Asistente</h3>
+                  <span class="agent-status-online">● Motor de patrones y reglas local</span>
+                </div>
+              </div>
+              <button type="button" id="ai-to-settings-btn" class="icon-btn-ghost" title="Configurar Cerebro IA">
+                <i data-lucide="sliders-horizontal"></i>
+              </button>
+            </div>
+
+            <div class="chat-full-messages" id="ai-chat-messages">
+              <div class="chat-bubble chat-bubble-assistant">
+                <div class="chat-bubble-content">
+                  <p>¡Hola! Soy tu <strong>Cerebro IA de reparto</strong>. Puedo ayudarte a registrar pedidos por texto o voz, preparar rutas pegando varias direcciones juntas, consultar tus pedidos y optimizar tu jornada.</p>
+                  <small class="chat-time">Ahora</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chips de Sugerencias Rápidas -->
+            <div class="chat-suggestions-bar">
+              <button type="button" class="suggestion-chip" data-prompt="Agrega un pedido para ">
+                <i data-lucide="plus"></i>
+                <span>Nuevo pedido</span>
+              </button>
+              <button type="button" class="suggestion-chip" data-prompt="Optimiza la ruta para mis pedidos">
+                <i data-lucide="zap"></i>
+                <span>Optimizar ruta</span>
+              </button>
+              <button type="button" class="suggestion-chip" data-prompt="Recuerda que el cliente de la calle 8 pide cambio">
+                <i data-lucide="bookmark"></i>
+                <span>Guardar regla</span>
+              </button>
+              <button type="button" class="suggestion-chip" data-prompt="¿Cuántos pedidos pendientes tengo?">
+                <i data-lucide="help-circle"></i>
+                <span>Estado de pedidos</span>
+              </button>
+            </div>
+
+            <div id="assistant-preview" class="ai-preview-box hidden"></div>
+            <p id="assistant-feedback" class="assistant-feedback-text" role="status" aria-live="polite"></p>
+
+            <div class="chat-full-input-bar">
+              <textarea
+                id="assistant-input"
+                rows="1"
+                placeholder="Pega varias direcciones para preparar una ruta o dicta una instrucción..."
+              ></textarea>
+              <button type="button" id="assistant-hold" class="btn-voice-hold" title="Mantén presionado para hablar" aria-label="Hablar">
+                <i data-lucide="mic"></i>
+              </button>
+              <button type="button" id="assistant-record" class="btn-voice-toggle" title="Iniciar/Detener grabación" aria-label="Grabar">
+                <i data-lucide="radio"></i>
+              </button>
+              <button type="button" id="assistant-analyze" class="btn-send-purple" title="Enviar instrucción" aria-label="Enviar">
+                <i data-lucide="send"></i>
+              </button>
+            </div>
+
+            <!-- Compatibilidad con IDs antiguos de IA -->
+            <div style="display: none;">
+              <ul id="rules-list"></ul>
+              <button type="button" id="export-data"></button>
+              <input type="file" id="import-data" accept="application/json,.json" />
+            </div>
+          </div>
+        </section>
+
+        <!-- PANTALLA 6: HISTORIAL DE JORNADAS Y ACCIONES -->
+        <section id="history-view" class="v3-view-screen hidden">
+          <div class="screen-page-header">
+            <div>
+              <h2 class="screen-page-title">Historial de Jornada</h2>
+              <p class="screen-page-subtitle">Registro cronológico de entregas, cambios de orden y acciones</p>
+            </div>
+            <div class="screen-header-actions">
+              <button type="button" id="clear-audit" class="btn btn-danger-outline btn-sm">
+                <i data-lucide="trash-2"></i>
+                <span>Limpiar historial</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="card history-card">
+            <div id="audit-list" class="audit-history-timeline">
+              <!-- Renderizado dinámicamente con v3.js -->
+            </div>
+          </div>
+        </section>
+
+        <!-- PANTALLA 7: ESTADÍSTICAS Y RENDIMIENTO -->
+        <section id="stats-view" class="v3-view-screen hidden">
+          <div class="screen-page-header">
+            <div>
+              <h2 class="screen-page-title">Estadísticas de Rendimiento</h2>
+              <p class="screen-page-subtitle">Métricas reales calculadas sobre tus entregas y rutas</p>
+            </div>
+          </div>
+
+          <div class="stats-cards-grid">
+            <div class="card stat-report-card">
+              <div class="stat-report-header">
+                <span class="stat-report-title">Tasa de Efectividad</span>
+                <i data-lucide="award" class="text-green"></i>
+              </div>
+              <div class="stat-report-value text-green" id="stats-effective-rate">100%</div>
+              <p class="stat-report-desc">Porcentaje de pedidos entregados exitosamente</p>
+            </div>
+
+            <div class="card stat-report-card">
+              <div class="stat-report-header">
+                <span class="stat-report-title">Distancia Recorrida Estimada</span>
+                <i data-lucide="map" class="text-blue"></i>
+              </div>
+              <div class="stat-report-value text-blue" id="stats-total-dist">0.0 km</div>
+              <p class="stat-report-desc">Suma estimada de los trayectos completados</p>
+            </div>
+
+            <div class="card stat-report-card">
+              <div class="stat-report-header">
+                <span class="stat-report-title">Tiempo en Ruta</span>
+                <i data-lucide="clock" class="text-purple"></i>
+              </div>
+              <div class="stat-report-value text-purple" id="stats-total-time">0h 0m</div>
+              <p class="stat-report-desc">Tiempo transcurrido desde el inicio de la jornada</p>
+            </div>
+
+            <div class="card stat-report-card">
+              <div class="stat-report-header">
+                <span class="stat-report-title">Entregas Fallidas</span>
+                <i data-lucide="alert-triangle" class="text-danger"></i>
+              </div>
+              <div class="stat-report-value text-danger" id="stats-failed-count">0</div>
+              <p class="stat-report-desc">Domicilios no completados por causas del cliente</p>
+            </div>
+          </div>
+
+          <!-- Barra de Progreso de la Jornada -->
+          <div class="card progress-overview-card">
+            <h3 class="panel-card-title"><i data-lucide="pie-chart" class="text-purple"></i> Progreso General de Entregas</h3>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="stats-progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-bar-legend">
+              <span id="stats-progress-legend-done">0 completados</span>
+              <span id="stats-progress-legend-pending">0 pendientes</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- PANTALLA 8: CONFIGURACIÓN GENERAL (ID "settings-view") -->
+        <section id="settings-view" class="v3-view-screen hidden">
+          <div class="screen-page-header">
+            <div>
+              <h2 class="screen-page-title">Configuración del Sistema</h2>
+              <p class="screen-page-subtitle">Ajustes de memoria, reglas, lugares guardados y copias de seguridad</p>
+            </div>
+          </div>
+
+          <div class="settings-sections-grid">
+            <!-- 1. Memoria y Reglas -->
+            <div class="card settings-section-card">
+              <h3 class="panel-card-title"><i data-lucide="brain" class="text-purple"></i> Memoria del Cerebro IA</h3>
+              <p class="text-secondary small">Instrucciones y preferencias que el asistente tiene memorizadas.</p>
+              <div id="settings-rules" class="rules-chips-list"></div>
+              <button type="button" id="settings-add-rule-btn" class="btn btn-purple-outline btn-sm">
+                <i data-lucide="plus"></i>
+                <span>Agregar regla manual</span>
+              </button>
+            </div>
+
+            <!-- 2. Motor de IA y Preferencias -->
+            <div class="card settings-section-card">
+              <h3 class="panel-card-title"><i data-lucide="cpu" class="text-blue"></i> Motor de Inteligencia Artificial</h3>
+              <div class="info-note-box">
+                <i data-lucide="info"></i>
+                <div>
+                  <strong>Motor local heurístico de reglas</strong>
+                  <p class="small text-secondary">Procesa texto y voz directamente en tu navegador sin enviar datos a servidores externos de IA generativa.</p>
+                </div>
+              </div>
+              <div class="settings-toggle-row">
+                <div>
+                  <strong>Guardar recuerdos automáticamente</strong>
+                  <p class="small text-muted">Aprende instrucciones sin pedir confirmación adicional.</p>
+                </div>
+                <label class="switch-ui-label">
+                  <input type="checkbox" id="automatic-memory" checked />
+                  <span class="switch-ui-slider"></span>
+                </label>
+              </div>
+              <div class="settings-toggle-row">
+                <div>
+                  <strong>Auditoría de acciones activada</strong>
+                  <p class="small text-muted">Registra cronológicamente cada cambio relevante.</p>
+                </div>
+                <label class="switch-ui-label">
+                  <input type="checkbox" id="audit-enabled" checked disabled />
+                  <span class="switch-ui-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 3. Direcciones y Lugares Guardados -->
+            <div class="card settings-section-card">
+              <h3 class="panel-card-title"><i data-lucide="bookmark" class="text-orange"></i> Lugares Frecuentes Guardados</h3>
+              <p class="text-secondary small">Destinos preconfigurados para retorno de jornada (Casa, Base, etc.).</p>
+              <div id="saved-places-list" class="saved-places-chips"></div>
+            </div>
+
+            <!-- 4. Copias de Seguridad JSON -->
+            <div class="card settings-section-card">
+              <h3 class="panel-card-title"><i data-lucide="shield-check" class="text-green"></i> Copias de Seguridad y Datos</h3>
+              <p class="text-secondary small">Descarga o restaura tu base de pedidos, reglas y lugares locales.</p>
+              <div class="backup-btn-grid">
+                <button type="button" id="settings-export-data" class="btn btn-purple-outline">
+                  <i data-lucide="download"></i>
+                  <span>Exportar copia JSON</span>
+                </button>
+                <label class="btn btn-purple-outline import-label-wrap">
+                  <i data-lucide="upload"></i>
+                  <span>Importar copia JSON</span>
+                  <input type="file" id="settings-import-data" accept="application/json,.json" style="display: none;" />
+                </label>
+              </div>
+            </div>
+
+            <!-- 5. Información del Proyecto y Autor -->
+            <div class="card settings-section-card about-app-card">
+              <div class="about-app-inner">
+                <h4>DOMICILIO V3 · Asistente Inteligente de Reparto</h4>
+                <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
+                <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- BOTÓN FLOTANTE GLOBAL (FAB) PARA NUEVO PEDIDO -->
+    <button id="global-fab-order" type="button" class="fab-order-btn" aria-label="Nuevo pedido" title="Nuevo pedido">
+      <i data-lucide="plus"></i>
+    </button>
+
+    <!-- NAVEGACIÓN INFERIOR FIJA PARA CELULARES (5 SECCIONES) -->
+    <nav class="bottom-mobile-nav" aria-label="Navegación móvil">
+      <button type="button" class="mobile-nav-btn active" data-nav="home">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Inicio</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-nav="orders">
+        <i data-lucide="package"></i>
+        <span>Pedidos</span>
+        <span class="mobile-tab-badge" id="mobile-orders-badge">0</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-nav="routes">
+        <i data-lucide="route"></i>
+        <span>Rutas</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-nav="ai">
+        <i data-lucide="brain"></i>
+        <span>Cerebro IA</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-nav="map">
+        <i data-lucide="map"></i>
+        <span>Mapa</span>
+      </button>
+    </nav>
+
+    <!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- SCRIPTS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="/static/app.js"></script>
+    <script src="/static/v3.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script defer src="/static/bulk.js"></script>
+  </body>
+</html>

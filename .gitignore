@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Variables privadas
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos temporales
+*.log
+*.tmp
+.DS_Store
+
+# Copias de seguridad
+_backup_v3_original/
