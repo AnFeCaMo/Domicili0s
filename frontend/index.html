@@ -5,7 +5,7 @@
     <meta name="theme-color" content="#6D28D9" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>DOMICILIO V3 · Asistente Inteligente de Reparto</title>
+    <title>DOMICILIO V4 · Asistente Inteligente de Reparto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V3</span>
+            <span class="brand-title">DOMICILIO V4</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -895,7 +895,7 @@
             <!-- 5. Información del Proyecto y Autor -->
             <div class="card settings-section-card about-app-card">
               <div class="about-app-inner">
-                <h4>DOMICILIO V3 · Asistente Inteligente de Reparto</h4>
+                <h4>DOMICILIO V4 · Asistente Inteligente de Reparto</h4>
                 <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
                 <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
               </div>
@@ -935,6 +935,18 @@
       </button>
     </nav>
 
+    <section id="nav-v4" class="nav-v4" aria-label="Navegación GPS" hidden>
+      <div class="nav-v4-title">🧭 Navegación GPS <span id="nav-v4-state">Lista</span></div>
+      <div id="nav-v4-instruction" aria-live="polite">Elige un pedido y pulsa Ir al pedido.</div>
+      <div id="nav-v4-details">Ubicación no iniciada</div>
+      <div class="nav-v4-buttons">
+        <button type="button" id="nav-v4-lost">↻ Estoy perdido</button>
+        <button type="button" id="nav-v4-repeat">🔊 Repetir</button>
+        <button type="button" id="nav-v4-return">↩ Regresar a base</button>
+        <button type="button" id="nav-v4-arrived">✓ Entregado</button>
+        <button type="button" id="nav-v4-stop">■ Detener</button>
+      </div>
+    </section>
     <!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
     <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
@@ -946,6 +958,7 @@
     ></script>
     <script src="/static/app.js"></script>
     <script src="/static/v3.js"></script>
+    <script src="/static/navigation.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script defer src="/static/bulk.js"></script>
   </body>

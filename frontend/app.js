@@ -219,6 +219,13 @@ function renderPedidoList() {
       }, 150);
     });
 
+    const navigateBtn = document.createElement('button');
+    navigateBtn.type = 'button';
+    navigateBtn.className = 'btn btn-primary btn-sm';
+    navigateBtn.textContent = '🧭 Ir al pedido';
+    navigateBtn.addEventListener('click', (e) => { e.stopPropagation(); window.domicilioNav?.start(pedido); });
+    buttonsGrid.appendChild(navigateBtn);
+
     // 2. Editar Pedido
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
@@ -613,7 +620,8 @@ function setStartLocation(location) {
 }
 
 async function geocodeStartAddress() {
-  const query = startAddressInput.value.trim();
+  const query = normalizeAddress(startAddressInput.value.trim());
+  startAddressInput.value = query;
   if (!query) {
     showAddressFeedback('Escribe una dirección para buscar.', true);
     return;
@@ -774,6 +782,7 @@ async function calculateRoute() {
     }).addTo(mapInstance);
 
     mapInstance.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+    window.domicilioNav?.showOverviewArrows(route);
     currentRouteOrder = [...activePedidos];
     renderRouteSummary(route, activePedidos);
     showToast('Ruta calculada y trazada con éxito', 'success');
@@ -786,7 +795,8 @@ async function calculateRoute() {
 }
 
 async function geocodeAddress() {
-  const address = pedidoAddressInput.value.trim();
+  const address = normalizeAddress(pedidoAddressInput.value.trim());
+  pedidoAddressInput.value = address;
   if (!address) {
     showAddressFeedback('Escribe una dirección para buscar.', true);
     return;
@@ -843,7 +853,8 @@ function handlePedidoSubmit(event) {
   }
 
   const name = pedidoNameInput.value.trim();
-  const address = pedidoAddressInput.value.trim();
+  const address = normalizeAddress(pedidoAddressInput.value.trim());
+  pedidoAddressInput.value = address;
   const reference = document.getElementById('pedido-reference').value.trim();
 
   if (address) {
@@ -1444,3 +1455,59 @@ renderRouteSummary(null);
 renderPedidoList();
 renderRules();
 initVoice();
+
+// Navegación V4: cargada después de la inicialización del mapa.
+
+// Normalización conservadora: convertir números escritos en letras sin inventar domicilios.
+function normalizeAddress(raw) {
+  const nums={cero:0,uno:1,una:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,cien:100,ciento:100,doscientos:200,trescientos:300,cuatrocientos:400,quinientos:500};
+  const accents=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const words=raw.match(/[\p{L}]+|\d+|[^\p{L}\d]+/gu)||[];
+  const out=[];
+  for(let i=0;i<words.length;i++) {
+    const w=accents(words[i]);
+    if(!(w in nums)) {out.push(words[i]);continue;}
+    let value=nums[w],j=i;
+    // Admite "treinta y dos", "ciento cinco" y "doscientos uno".
+    while(j+2<words.length && /^\s+$/.test(words[j+1]) && accents(words[j+2]) in nums) {
+      const n=nums[accents(words[j+2])];
+      if((value>=100 && n<100) || (value>=20 && value%10===0 && n<10)) {value+=n;j+=2;}
+      else if(n===100 && value>0 && value<10) {value*=100;j+=2;}
+      else break;
+      if(/^\s+y\s+$/i.test(words.slice(j+1,j+4).join(''))) { /* handled by next loop */ }
+    }
+    // Handle the connecting 'y' token between tens and units.
+    if(value>=20 && value%10===0 && /^\s+y\s+$/i.test(words.slice(j+1,j+4).join('')) && nums[accents(words[j+4]||'')]<10) {value+=nums[accents(words[j+4])];j+=4;}
+    out.push(String(value));i=j;
+  }
+  return out.join('').replace(/\b(cll|cl)\.?\s+/gi,'Calle ').replace(/\b(cra|cr|kr)\.?\s+/gi,'Carrera ');
+}
+window.domicilioNormalizeAddress=normalizeAddress;
+const V4_RULES=[
+'Usar la posición GPS actual como origen cuando sea precisa y reciente.',
+'Agrupar pedidos cercanos y sugerir el orden con menor tiempo de carretera.',
+'Nunca cambiar el orden de pedidos sin confirmación del repartidor.',
+'Considerar pedidos urgentes y restricciones de circulación antes de optimizar.',
+'Calcular ida y regreso por separado: una calle de entrada no implica salida permitida.',
+'Indicar con flechas el sentido de circulación sobre cada recorrido.',
+'Cuando un pedido nuevo quede al paso, proponer incorporarlo sin alterar mucho la ruta.',
+'Cuando un pedido nuevo esté lejos, sugerir dejarlo para el final.',
+'Recalcular desde GPS al desviarse, sin inventar instrucciones.',
+'Avisar al llegar cerca del domicilio; confirmar antes de marcar entregado.',
+'Recordar correcciones de direcciones y puntos frecuentes confirmados.',
+'Interpretar números escritos en letras y conservar apartamento, barrio y referencias.',
+'No inventar números de vivienda ni dar por verificada una dirección ambigua.',
+'Conservar pedidos y última ruta cuando falle internet; advertir que no puede recalcular.',
+'Para ruta circular, terminar en Casa o base solo cuando esté configurado.',
+'No confundir ruta más corta con más rápida; usar tiempos de carretera disponibles.',
+'Informar de cierres y congestiones solo con fuentes actuales y verificables.',
+'No presentar reportes comunitarios como información confirmada.',
+'Respetar sentidos únicos y prohibiciones de giro según los datos del mapa.',
+'Priorizar indicaciones por voz y controles grandes para reducir interacción al conducir.'
+];
+function installV4Rules(){
+  const existing=new Set(learnedRules.map(r=>r.text));
+  for(const text of V4_RULES) if(!existing.has(text)) learnedRules.push({id:generatePedidoId(),text,createdAt:new Date().toISOString(),source:'v4-default'});
+  saveState();renderRules();
+}
+installV4Rules();
