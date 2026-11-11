@@ -6,6 +6,38 @@
   let watch = null, point = null, marker = null, line = null, arrows = [], overviewArrows = [];
   let target = null, route = null, steps = [], stepIndex = -1, lastReroute = 0, lastVoice = '', arrived = false;
   let gpsAccuracy = Infinity, gpsTimestamp = 0, calculating = false, destinationIsBase = false, routeGeneration = 0;
+  // Avisos discretos: solo al aproximarse a una maniobra, nunca cada 10 metros.
+  let voiceStage = new Map(), lastSpokenAt = 0, lastTurnAdvanceAt = 0;
+  const isTurn = (step) => {
+    const m = step?.maneuver || {};
+    return ['turn','roundabout','rotary','fork','end of road','new name','merge','on ramp','off ramp','notification','arrive'].includes(m.type)
+      && (m.type === 'arrive' || ['left','right','slight left','slight right','sharp left','sharp right','uturn'].includes(m.modifier) || ['roundabout','rotary','fork','end of road','off ramp'].includes(m.type));
+  };
+  function resetVoiceGuidance() {voiceStage.clear(); lastSpokenAt=0; lastTurnAdvanceAt=0;}
+  // Devuelve el próximo hito de voz; omite «continúa derecho» para no saturar.
+  function nextVoiceStep() {
+    for (let i=stepIndex+1; i<steps.length; i++) if(isTurn(steps[i])) return {i,step:steps[i]};
+    return null;
+  }
+  function guideAtGps() {
+    const next=nextVoiceStep();
+    if(!next) return;
+    const d=distance(point,next.step.point);
+    const previous=voiceStage.get(next.i)||0;
+    // A 100 m, 50 m y en el cruce. El GPS puede variar unos metros.
+    const stage=d<=22?3:d<=55?2:d<=110?1:0;
+    if(stage<=previous) return;
+    // Ignorar avisos poco fiables cuando el margen de error cubre el cruce.
+    if(gpsAccuracy>Math.min(35,Math.max(15,d/2))) return;
+    const now=Date.now();
+    if(now-lastSpokenAt<9000 && stage<3) return;
+    const action=stepText(next.step);
+    const statement=stage===3?`Ahora, ${action}`:stage===2?`En 50 metros, ${action}`:`En 100 metros, ${action}`;
+    voiceStage.set(next.i,stage);
+    lastSpokenAt=now;
+    message(statement,true);
+    if(stage===3 && now-lastTurnAdvanceAt>7000){stepIndex=next.i;lastTurnAdvanceAt=now;}
+  }
   const autoNextKey = 'domicilio-v4-auto-next';
   const autoNextCheckbox = $('nav-v4-auto-next');
   autoNextCheckbox.checked = localStorage.getItem(autoNextKey) !== 'false';
@@ -65,12 +97,7 @@
     if(gpsAccuracy>80) {status('GPS impreciso');return;}
     if(remaining<Math.max(35,gpsAccuracy+15) && !arrived) {arrived=true; status('Cerca del destino');message('Estás cerca del destino. Comprueba la dirección antes de marcar la entrega.',true);return;}
     if(!route || !steps.length) return;
-    const next=steps.findIndex((s,i)=>i>stepIndex && distance(point,s.point)<Math.max(40,gpsAccuracy+25));
-    if(next>=0) { stepIndex=next; message(stepText(steps[next]),true); }
-    else {
-      const upcoming=steps.find((s,i)=>i>stepIndex);
-      if(upcoming && distance(point,upcoming.point)<180 && distance(point,upcoming.point)>65) message(`En ${Math.round(distance(point,upcoming.point)/10)*10} metros, ${stepText(upcoming)}`,true);
-    }
+    guideAtGps();
     // Solo recalcular con desvío persistente aproximado y con intervalo mínimo.
     if(route && Date.now()-lastReroute>45000 && navigator.onLine && distanceToLine(point,route.geometry.coordinates)>95) {
       lastReroute=Date.now(); message('Posible desvío. Recalculando recorrido.',true); calculate();
@@ -119,13 +146,13 @@
       if(generation!==routeGeneration) return;
       if(data.code!=='Ok'||!data.routes?.length) throw new Error('No se encontró recorrido por calles');
       route=data.routes[0]; steps=(route.legs||[]).flatMap(l=>l.steps||[]).map(s=>({...s,point:[s.maneuver.location[1],s.maneuver.location[0]]}));
-      stepIndex=-1; arrived=false; removeLayer(line); removeArrows(arrows);
+      stepIndex=-1; arrived=false; resetVoiceGuidance(); removeLayer(line); removeArrows(arrows);
       line=L.geoJSON(route.geometry,{style:{color:destinationIsBase?'#e88725':'#1668e9',weight:7,opacity:0.9,dashArray:destinationIsBase?'12 7':null}}).addTo(mapInstance);
       addArrows(route.geometry.coordinates.map(c=>[c[1],c[0]]),arrows,destinationIsBase?'#783900':'#fff',90);
       mapInstance.fitBounds(line.getBounds(),{padding:[55,55]});
       status('Navegando');
       $('nav-v4-details').textContent=`${(route.distance/1000).toFixed(2)} km · ${Math.ceil(route.duration/60)} min estimados · ${destinationIsBase?'Regreso':'Ida'}`;
-      message(steps.length?stepText(steps[0]):'Sigue la ruta indicada por las flechas.',true);
+      message(steps.length?'Ruta preparada. Sigue las indicaciones del mapa. Avisaré antes de cada giro.':'Sigue la ruta indicada por las flechas.',true);
       try {localStorage.setItem('domicilio-v4-last-route',JSON.stringify({target,geometry:route.geometry,at:Date.now()}));}catch(_){}
     }catch(e) {if(generation===routeGeneration) {status('Ruta no disponible');message(`No se pudo actualizar la ruta: ${e.message}. Revisa la conexión.`,true);}}
     finally {if(generation===routeGeneration) calculating=false;}
@@ -138,7 +165,7 @@
   function start(pedido) {
     if(!pedido || !Number.isFinite(Number(pedido.lat)) || !Number.isFinite(Number(pedido.lng))) {showToast('Este pedido no tiene coordenadas válidas','danger');return;}
     // No reutilizar instrucciones o geometría del pedido anterior.
-    routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;lastVoice='';
+    routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;lastVoice='';resetVoiceGuidance();
     removeLayer(line);line=null;removeArrows(arrows);
     destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)]};
     panel.hidden=false; window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
@@ -148,10 +175,10 @@
   function back() {
     if(!startLocation?.every(Number.isFinite)) {message('Configura primero el punto de salida.');return;}
     routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;removeLayer(line);line=null;removeArrows(arrows);
-    destinationIsBase=true; target={id:null,coords:[...startLocation]}; arrived=false;
+    destinationIsBase=true; target={id:null,coords:[...startLocation]}; arrived=false;resetVoiceGuidance();
     panel.hidden=false; window.v3Navigate?.('map'); beginGps(); calculate();
   }
-  function stop() {routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
+  function stop() {resetVoiceGuidance();routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
   function deliver() {
     if(!target?.id) {message('Estás navegando al punto de salida, no a un pedido.');return;}
     const currentId=target.id;
