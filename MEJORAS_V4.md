@@ -68,3 +68,14 @@ No se modificó Render ni GitHub. Se entrega un archivo comprimido sin la carpet
 - Reglas nuevas persistentes que no sustituyen las preferencias previas.
 - La matriz vial de OSRM requiere internet y puede tener límites; V4.3 no garantiza tráfico en vivo, GPS en segundo plano ni exactitud de geocodificación.
 - **Antes de instalar:** exportar copia de seguridad desde la aplicación. Los pedidos están en localStorage del navegador, no en GitHub.
+
+## V4.4 — separación de cliente, numeración y referencias (sin perder pedidos)
+- El panel **Rutas → Revisar direcciones guardadas** ahora propone Cliente, Dirección y Referencia en campos separados.
+- Detecta numeración duplicada en nombres cuando coincide con la numeración del domicilio (por ejemplo `23 02` frente a `#23-02`, o `1939` frente a `#19-39`). No elimina cifras distintas.
+- Reconoce la palabra `esquina` como referencia, no como nombre del destinatario; si no se menciona la vía del cruce, la deja sin inventarla.
+- Repara nombres contaminados como `número Linda Oliveros`, manteniendo el nombre y la dirección original.
+- También aplica la separación a la vista previa de importación de listas/archivos y a instrucciones que extraen direcciones.
+- Cada corrección requiere aprobación individual. Los cambios de dirección dejan marcada la ubicación para revisar el punto en el mapa; las coordenadas NO se modifican automáticamente.
+- Se agregan seis reglas de interpretación a la memoria local sin borrar reglas previas. No se incorporó un modelo generativo: se utiliza lógica local verificable.
+- `node tests/test_v44_separation.js` revisa nueve casos; `node tests/test_v42_parse.js` comprueba listas.
+- Se actualiza la caché del service worker para entregar los scripts nuevos.

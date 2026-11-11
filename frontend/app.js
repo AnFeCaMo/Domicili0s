@@ -928,12 +928,8 @@ function parseAddressList(text) {
 
   return matches.map((match, index) => {
     const nextStart = matches[index + 1]?.index ?? text.length;
-    return {
-      address: match[0].trim(),
-      name: clean(text.slice(match.index + match[0].length, nextStart)) || (index === 0 ? firstName : ''),
-      reference: '',
-      priority: 'normal',
-    };
+    const values=separatePedidoFields(clean(text.slice(match.index + match[0].length, nextStart)) || (index === 0 ? firstName : ''),match[0].trim());
+    return {address:values.address,name:values.name,reference:values.reference,priority:'normal'};
   });
 }
 
@@ -1272,6 +1268,58 @@ function startGps() {
   showToast('GPS activado en alta precisión', 'success');
 }
 
+// V4.4: separar campos mezclados de pedidos anteriores y dictados.
+// Es una propuesta local y reversible: nunca cambia coordenadas ni guarda sin confirmar.
+function separatePedidoFields(name, address, reference='') {
+  let customer=String(name||'').trim().replace(/\s+/g,' ');
+  let normalized=normalizeAddress(address||'');
+  let detail=String(reference||'').trim();
+  const original={name:customer,address:normalized,reference:detail};
+  const notes=[];
+  const appendDetail=value=>{ if(value && !detail.toLowerCase().includes(value.toLowerCase())) detail=[detail,value].filter(Boolean).join(' · '); };
+  // Si se pegó una dirección completa dentro del campo cliente, extraerla solo
+  // cuando la dirección actual está incompleta. Nunca sustituir una dirección ya completa.
+  const embedded=customer.match(/\b(?:calle|carrera|cll|cra|cr|kr)\s+\d+[A-Za-z]?(?:\s+(?:n[uú]mero|numeral|#|calle|carrera|cra|cr)\s*|\s+#\s*)\d+[A-Za-z]?(?:\s*[-–]\s*|\s+)\d+[A-Za-z]?/i);
+  if(embedded && !/#\s*\d+[A-Za-z]?\s*-\s*\d+[A-Za-z]?/i.test(normalized)) {
+    normalized=normalizeAddress(embedded[0]);
+    customer=customer.replace(embedded[0],' ').replace(/\s+/g,' ').trim();
+    notes.push('Dirección completa trasladada desde el cliente');
+  }
+  // Si el domicilio solo dice Calle 1B y el nombre empieza por "número 21 07",
+  // completar la dirección antes de separar el cliente.
+  const bare=normalized.match(/^((?:Calle|Carrera)\s+\d+[A-Za-z]?(?:\s+bis)?)$/i);
+  const detached=customer.match(/^\s*(?:n[uú]mero|numeral|#)\s*(\d+[A-Za-z]?)\s+([0-9]+[A-Za-z]?)(?=\s|$)/i);
+  if(bare && detached) {
+    normalized=normalizeAddress(`${normalized} #${detached[1]}-${detached[2]}`);
+    customer=customer.slice(detached[0].length).trim();
+    notes.push('Numeración recuperada de cliente');
+  }
+  // Quitar del campo cliente solamente numeraciones que coinciden exactamente
+  // con la numeración de la dirección; jamás descartar cifras desconocidas.
+  const house=normalized.match(/#\s*(\d+[A-Za-z]?)\s*[-–]\s*(\d+[A-Za-z]?)/i);
+  if(house){
+    const a=house[1],b=house[2];
+    const escapeRegex=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const joined=escapeRegex(a+b), separated=`${escapeRegex(a)}\\s*(?:[-– ]\\s*)${escapeRegex(b)}`;
+    const prefix=new RegExp(`^\\s*(?:(?:n[uú]mero|numeral|#)\\s*)?(?:${separated}|${joined})(?=\\s|$)\\s*`,'i');
+    const before=customer;
+    customer=customer.replace(prefix,'').trim();
+    if(before!==customer)notes.push('Numeración duplicada quitada del cliente');
+  }
+  // "número" suelto antes de un nombre es un marcador de dictado, no parte del nombre.
+  customer=customer.replace(/^\s*(?:n[uú]mero|numeral|#)\s+(?=[A-Za-zÁÉÍÓÚÑáéíóúñ])/i,'').trim();
+  // «Esquina» expresa una referencia vial. Sin una calle transversal no
+  // inventamos el cruce; movemos la palabra a observaciones.
+  if(/\besquina\b/i.test(customer)) {
+    customer=customer.replace(/\besquina\b/ig,' ').replace(/\s+/g,' ').trim();
+    appendDetail('esquina');
+    notes.push('Referencia de esquina separada del cliente');
+  }
+  if(/^\s*(?:n[uú]mero|numeral|#)\s*$/i.test(customer)) customer='';
+  return {name:customer,address:normalized,reference:detail,changed:customer!==original.name||normalized!==original.address||detail!==original.reference,notes};
+}
+window.domicilioSeparatePedidoFields=separatePedidoFields;
+
 // V4.3: revisar y corregir pedidos guardados sin volver a importarlos.
 function displayCurrentOrders(mode='manual') {
   const panel=document.getElementById('v43-current-orders');
@@ -1297,32 +1345,30 @@ function displayCurrentOrders(mode='manual') {
     }else{
       const customer=document.createElement('input');customer.type='text';customer.value=p.name||'';customer.setAttribute('aria-label',`Cliente del pedido ${p.number}`);
       const addr=document.createElement('input');addr.type='text';addr.value=normalizeAddress(p.address||'');
-      // Solo previsualizar cuando el nombre contiene una dirección completa identificable.
-      const embedded=customer.value.match(/\b(?:calle|carrera|cll|cra|cr)\s+\d+[a-z]?\s+(?:(?:numero|número|numeral|#|calle|carrera|cra|cr)\s*)?\d+[a-z]?[\s-]+\d+[a-z]?\b/i);
-      if(embedded && !/(?:#\s*\d+\s*[-–]\s*\d+)/.test(addr.value)){
-        addr.value=normalizeAddress(embedded[0]);
-        customer.value=customer.value.replace(embedded[0],'').trim();
-      }addr.setAttribute('aria-label',`Dirección del pedido ${p.number}`);
+      const parsed=separatePedidoFields(p.name,p.address,p.reference);
+      customer.value=parsed.name;
+      addr.value=parsed.address;
+      addr.setAttribute('aria-label',`Dirección del pedido ${p.number}`);
+      const ref=document.createElement('input');ref.type='text';ref.value=parsed.reference;
+      ref.setAttribute('aria-label',`Referencia del pedido ${p.number}`);
+      ref.placeholder='Referencia: esquina, barrio, entrada…';
       const save=document.createElement('button');save.type='button';save.className='btn btn-primary btn-sm';save.textContent='Guardar corrección';
-      const flag=document.createElement('small');flag.textContent=p.needsLocationReview?'⚠ Verifica ubicación en el mapa':'Coordenadas conservadas';
+      const flag=document.createElement('small');
+      flag.textContent=parsed.changed ? `Propuesta para revisar: ${parsed.notes.join('; ') || 'campos separados'}. Coordenadas sin modificar.`
+        : p.needsLocationReview?'⚠ Verifica ubicación en el mapa':'Datos conservados; coordenadas sin modificar';
       save.onclick=()=>{
-        const newName=customer.value.trim(),newAddress=normalizeAddress(addr.value);
+        const revised=separatePedidoFields(customer.value,addr.value,ref.value);
+        const newName=revised.name,newAddress=revised.address,newReference=revised.reference;
         if(!newAddress){showToast('La dirección no puede quedar vacía','danger');return;}
-        if(!confirm(`¿Guardar los cambios del pedido #${p.number}?\nAntes: ${p.address}\nDespués: ${newAddress}\n\nSi cambia el domicilio, verifica su punto en el mapa.`))return;
         const changed=newAddress!==p.address;
-        p.name=newName;p.address=newAddress;
+        const message=`¿Guardar la corrección del pedido #${p.number}?\n\nCliente: ${newName||'(sin cliente)'}\nDirección: ${newAddress}\nReferencia: ${newReference||'(ninguna)'}\n\nLas coordenadas no cambiarán; revisa el punto en el mapa.`;
+        if(!confirm(message))return;
+        p.name=newName;p.address=newAddress;p.reference=newReference;
         if(changed)p.needsLocationReview=true;
         saveState();renderPedidoList();window.v3Refresh?.();
-        displayCurrentOrders('review');showToast(changed?'Dirección guardada. Verifica su ubicación en el mapa.':'Cliente actualizado','info',5500);
+        displayCurrentOrders('review');showToast(changed?'Dirección corregida. Verifica ubicación en el mapa.':'Cliente y referencia actualizados','info',5500);
       };
-      if(!embedded && /^\s*(?:calle|carrera)\s+\d+[a-z]?\s*$/i.test(addr.value)){
-        const detached=customer.value.match(/\b(?:número|numero|numeral|#)\s*(\d+[a-z]?)\s+([0-9]+[a-z]?)\b/i);
-        if(detached){
-          addr.value=normalizeAddress(addr.value+' #'+detached[1]+'-'+detached[2]);
-          customer.value=customer.value.replace(detached[0],'').trim();
-        }
-      }
-      line.append(customer,addr,flag,save);
+      line.append(customer,addr,ref,flag,save);
     }
     list.append(line);
   });
@@ -1526,6 +1572,7 @@ function normalizeAddress(raw) {
   }
   text=output.join('').replace(/\b(cll|cl)\.?\s+/gi,'Calle ').replace(/\b(cra|cr|kr)\.?\s+/gi,'Carrera ');
   text=text.replace(/\bnumero\b|\bnúmero\b/gi,'#').replace(/\bnumeral\b/gi,'#');
+  text=text.replace(/(\b(?:Calle|Carrera)\s+\d+[A-Za-z]?)\s*#\s*/i,'$1 #');
   text=text.replace(/(\d+[A-Za-z]?)\s+guion\s+(\d+[A-Za-z]?)/gi,'$1-$2');
   // En Colombia, Calle X seguida de Carrera Y o # Y-Z se interpreta como Calle X #Y-Z.
   // Carrera X seguida de Calle Y se interpreta como Carrera X #Y-Z.
@@ -1572,7 +1619,13 @@ const V4_RULES=[
 'Ofrecer controles manuales para subir o bajar pedidos y guardar el orden elegido.',
 'Normalizar direcciones antiguas separando palabras y números sin inventar viviendas.',
 'Si se corrige un domicilio existente, conservar sus coordenadas temporalmente pero exigir su verificación antes de optimizar.',
-'No borrar pedidos, nombres, ubicaciones o preferencias existentes durante una migración.'
+'No borrar pedidos, nombres, ubicaciones o preferencias existentes durante una migración.',
+'El campo cliente contiene el nombre o la institución; no debe incluir número, numeral, # ni numeración predial duplicada.',
+'Una referencia como esquina, barrio o entrada se guarda en Referencia, separada del cliente y del número predial.',
+'Si el cliente trae 23 02 y la dirección es Calle 8 #23-02, reconocer la duplicación y proponer retirarla del nombre.',
+'Si el cliente trae 1939 y la dirección es Calle 7 #19-39, comparar cifras antes de separar y no borrar números diferentes.',
+'Las correcciones de los pedidos guardados solo se aplican después de confirmación; no borrar datos y exigir verificación del mapa si cambia la dirección.',
+'No inventar la calle de una esquina cuando solo se dicta la palabra esquina; conservarla como referencia incompleta.'
 ];
 function installV4Rules(){
   const existing=new Set(learnedRules.map(r=>r.text));

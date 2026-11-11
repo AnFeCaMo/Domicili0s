@@ -61,6 +61,8 @@
   function uniqueRows(rows) {
     const keys = new Set();
     return rows.filter(row => {
+      const separated=window.domicilioSeparatePedidoFields?.(row.name,row.address,row.reference);
+      if(separated)Object.assign(row,{name:separated.name,address:separated.address,reference:separated.reference});
       row.address = window.domicilioNormalizeAddress(row.address);
       const key = normalize(row.address)+'|'+normalize(row.name);
       if (!clean(row.address) || keys.has(key)) return false;
