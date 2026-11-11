@@ -888,6 +888,7 @@ function initializeMap() {
   mapInstance.on('click', (event) => {
     const clickedLocation = [event.latlng.lat, event.latlng.lng];
 
+    if (window.domicilioBulkMapPick?.(clickedLocation)) return;
     if (isSelectingStartPoint) {
       setStartLocation(clickedLocation);
       isSelectingStartPoint = false;
@@ -909,30 +910,63 @@ function initializeMap() {
 
 // Asistente Local Heurístico
 function parseAddressList(text) {
-  // La normalización se aplica por línea ANTES de separar dirección de cliente.
-  // Ej.: «Calle 24 número 11 16\nAna» no debe convertir «16» en nombre.
-  text=String(text||'').split(/\r?\n/).map(line=>normalizeAddress(line)).join('\n');
-  const addressPattern = /\b(?:calle|cll?\.?|carrera|cra?\.?|cr\.?|kr\.?|avenida|av\.?|diagonal|dg\.?|transversal|tv\.?|manzana|mz\.?|kil[oó]metro|km)\s+\d+[a-z]?(?:\s*(?:#|n(?:[.º°]|o\.?)?)\s*\d+[a-z]?(?:\s*[-–]\s*\d+[a-z]?)?)?(?:\s*(?:bis|sur|este|oeste))?/giu;
-  const matches = [...text.matchAll(addressPattern)];
-  if (!matches.length) return [];
-
-  const clean = (value) => value
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/^[\s,;|:–—-]+|[\s,;|:–—-]+$/g, '')
-    .trim();
-  const prefix = clean(text.slice(0, matches[0].index));
-  const commandPrefix = /^(?:agrega|añade|crea|crear|registra|registrar|arma|organiza)\b[\s\S]*$/i.test(prefix);
-  const firstName = !commandPrefix && /[|;–—-]/.test(prefix)
-    ? clean(prefix.split(/[|;–—-]/).pop())
-    : '';
-
-  return matches.map((match, index) => {
-    const nextStart = matches[index + 1]?.index ?? text.length;
-    const values=separatePedidoFields(clean(text.slice(match.index + match[0].length, nextStart)) || (index === 0 ? firstName : ''),match[0].trim());
+  // V4.5: permitir listas numeradas copiadas de un chat o documento, tanto
+  // «1. Cliente\nCalle...» como «1. Calle...\nCliente».
+  const original=String(text||'').replace(/\r/g,'');
+  const addressStart=/^(?:calle|cll?\.?|carrera|cra?\.?|cr\.?|kr\.?|avenida|av\.?|diagonal|dg\.?|transversal|tv\.?|manzana|mz\.?)\s*\d/i;
+  const clean=s=>String(s||'').replace(/\*\*/g,'').replace(/^\s*[-•]\s*/,'').trim();
+  const lines=original.split('\n').map(clean);
+  const marker=/^(\d{1,3})\s*[.)]\s*(.*)$/;
+  const groups=[];let current=[], markerCount=0;
+  for(const line of lines){
+    if(!line)continue;
+    const m=line.match(marker)||line.match(/^(\d{1,3})$/);
+    if(m){
+      markerCount++;
+      if(current.length)groups.push(current);
+      current=[];if(m[2])current.push(clean(m[2]));
+    }else current.push(line);
+  }
+  if(current.length)groups.push(current);
+  if(markerCount>=2){
+    const rows=[];
+    for(const group of groups){
+      const index=group.findIndex(x=>addressStart.test(x));
+      if(index<0)continue;
+      const normal=normalizeAddress(group[index]);
+      const addrMatch=normal.match(/^((?:Calle|Carrera|Avenida|Diagonal|Transversal|Manzana)\s+\d+[A-Za-z]?(?:\s+bis)?(?:\s*#\s*\d+[A-Za-z]?(?:\s*-\s*\d+[A-Za-z]?)?)?)(?:\s+(.*))?$/i);
+      const address=addrMatch?addrMatch[1]:normal;
+      const suffix=addrMatch?.[2]||'';
+      const before=group.slice(0,index).map(clean).filter(Boolean);
+      const after=[suffix,...group.slice(index+1)].map(clean).filter(Boolean);
+      let name='',reference='';
+      if(before.length){name=before[0];reference=[...before.slice(1),...after].join(' · ');}
+      else if(after.length){name=after[0];reference=after.slice(1).join(' · ');}
+      name=name.replace(/\s+\d{1,3}[.)]\s*$/,'').trim();
+      const detailSplit=name.match(/^(.*?)\s+[—–]\s+(.+)$/);
+      if(detailSplit){name=detailSplit[1];reference=[detailSplit[2],reference].filter(Boolean).join(' · ');}
+      const separated=separatePedidoFields(name,address,reference);
+      rows.push({name:separated.name,address:separated.address,reference:separated.reference,priority:'normal'});
+    }
+    if(rows.length)return rows;
+  }
+  // Texto sin numeración: reutilizar el detector de direcciones; separar los
+  // campos usando el mismo motor que revisa pedidos ya guardados.
+  text=original.split(/\r?\n/).map(line=>normalizeAddress(line)).join('\n');
+  const addressPattern=/\b(?:calle|cll?\.?|carrera|cra?\.?|cr\.?|kr\.?|avenida|av\.?|diagonal|dg\.?|transversal|tv\.?|manzana|mz\.?|kil[oó]metro|km)\s+\d+[a-z]?(?:\s*(?:#|n(?:[.º°]|o\.?)?)\s*\d+[a-z]?(?:\s*[-–]\s*\d+[a-z]?)?)?(?:\s*(?:bis|sur|este|oeste))?/giu;
+  const matches=[...text.matchAll(addressPattern)];
+  if(!matches.length)return [];
+  const cleanFragment=value=>value.replace(/[\r\n]+/g,' ').replace(/^[\s,;|:–—-]+|[\s,;|:–—-]+$/g,'').trim();
+  const prefix=cleanFragment(text.slice(0,matches[0].index));
+  const commandPrefix=/^(?:agrega|añade|crea|crear|registra|registrar|arma|organiza)\b[\s\S]*$/i.test(prefix);
+  const firstName=!commandPrefix && /[|;–—-]/.test(prefix)?cleanFragment(prefix.split(/[|;–—-]/).pop()):'';
+  return matches.map((match,index)=>{
+    const nextStart=matches[index+1]?.index??text.length;
+    const rawName=cleanFragment(text.slice(match.index+match[0].length,nextStart))||(index===0?firstName:'');
+    const values=separatePedidoFields(rawName.replace(/\s+\d{1,3}[.)]\s*$/,''),match[0].trim());
     return {address:values.address,name:values.name,reference:values.reference,priority:'normal'};
   });
 }
-
 window.v3ParseAddressList = parseAddressList;
 
 function parseInstruction(text) {
@@ -1271,7 +1305,8 @@ function startGps() {
 // V4.4: separar campos mezclados de pedidos anteriores y dictados.
 // Es una propuesta local y reversible: nunca cambia coordenadas ni guarda sin confirmar.
 function separatePedidoFields(name, address, reference='') {
-  let customer=String(name||'').trim().replace(/\s+/g,' ');
+  // Una numeración de lista como «Mateus Marcos 3.» no forma parte del nombre.
+  let customer=String(name||'').trim().replace(/\s+/g,' ').replace(/\s+\d{1,3}[.)]\s*$/,'').trim();
   let normalized=normalizeAddress(address||'');
   let detail=String(reference||'').trim();
   const original={name:customer,address:normalized,reference:detail};
@@ -1625,7 +1660,12 @@ const V4_RULES=[
 'Si el cliente trae 23 02 y la dirección es Calle 8 #23-02, reconocer la duplicación y proponer retirarla del nombre.',
 'Si el cliente trae 1939 y la dirección es Calle 7 #19-39, comparar cifras antes de separar y no borrar números diferentes.',
 'Las correcciones de los pedidos guardados solo se aplican después de confirmación; no borrar datos y exigir verificación del mapa si cambia la dirección.',
-'No inventar la calle de una esquina cuando solo se dicta la palabra esquina; conservarla como referencia incompleta.'
+'No inventar la calle de una esquina cuando solo se dicta la palabra esquina; conservarla como referencia incompleta.',
+'Una lista numerada 1, 2, 3 o 1., 2., 3. usa esos números como índice de entrega, no como parte del cliente o número predial.',
+'Cuando copio una ruta ordenada desde un chat, admitir tanto cliente antes de dirección como dirección antes de cliente.',
+'Reconocer texto después de raya larga como posible referencia de apartamento, barrio o sector y ofrecerlo separado del cliente.',
+'Si una dirección importada no tiene coordenadas confirmadas, indicar qué pedido necesita verificación y permitir elegirlo manualmente en el mapa.',
+'No calcular ni prometer navegación para puntos no verificados: solicitar revisión en vez de inventar ubicación.'
 ];
 function installV4Rules(){
   const existing=new Set(learnedRules.map(r=>r.text));

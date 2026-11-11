@@ -5,7 +5,7 @@
   const $ = id => document.getElementById(id);
   const input = $('bulk-input'), file = $('bulk-file'), results = $('bulk-results');
   if (!input || !results) return;
-  let draft = [], proposal = null, busy = false;
+  let draft = [], proposal = null, busy = false, mapPickRow = null;
   const clean = s => String(s ?? '').trim();
   const normalize = s => clean(s).toLocaleLowerCase('es').replace(/\s+/g, ' ');
   const status = (message, error = false) => { $('bulk-status').textContent = message; $('bulk-status').style.color = error ? '#dc2626' : '#6D28D9'; };
@@ -70,22 +70,41 @@
     }).map((row,i)=>({...row,uid:i+1,lat:null,lng:null,checked:false,issue:'Sin verificar'}));
   }
   function preview() {
-    results.replaceChildren(); proposal = null;
+    results.replaceChildren(); proposal = null;mapPickRow=null;
     if (!draft.length) { status('No se encontraron direcciones válidas.',true); return; }
     const table = document.createElement('div'); table.className='bulk-table';
     draft.forEach((row,i)=>{
       const item=document.createElement('div'); item.className='bulk-item';
-      item.innerHTML=`<span class="bulk-index">${i+1}</span><div class="bulk-fields"><input aria-label="Nombre" placeholder="Cliente (opcional)" value="${escapeHtml(row.name)}" data-field="name"><input aria-label="Dirección" placeholder="Dirección" value="${escapeHtml(row.address)}" data-field="address"><input aria-label="Referencia" placeholder="Referencia" value="${escapeHtml(row.reference)}" data-field="reference"><select aria-label="Prioridad" data-field="priority"><option value="normal">Normal</option><option value="prioritario">Prioritario</option><option value="urgente">Urgente</option></select><small class="bulk-row-status">${escapeHtml(row.issue)}</small></div><button type="button" class="bulk-remove" aria-label="Quitar dirección">×</button>`;
+      item.innerHTML=`<span class="bulk-index">${i+1}</span><div class="bulk-fields"><input aria-label="Nombre" placeholder="Cliente (opcional)" value="${escapeHtml(row.name)}" data-field="name"><input aria-label="Dirección" placeholder="Dirección" value="${escapeHtml(row.address)}" data-field="address"><input aria-label="Referencia" placeholder="Referencia" value="${escapeHtml(row.reference)}" data-field="reference"><select aria-label="Prioridad" data-field="priority"><option value="normal">Normal</option><option value="prioritario">Prioritario</option><option value="urgente">Urgente</option></select><small class="bulk-row-status">${escapeHtml(row.issue)}</small><button type="button" class="btn btn-secondary btn-sm bulk-map-pick">📍 Elegir punto en mapa</button></div><button type="button" class="bulk-remove" aria-label="Quitar dirección">×</button>`;
       item.querySelector('select').value=row.priority;
       item.querySelectorAll('[data-field]').forEach(control=>control.addEventListener('change',()=>{row[control.dataset.field]=control.dataset.field==='address'?window.domicilioNormalizeAddress(control.value):control.value; if(control.dataset.field==='address')control.value=row.address; row.checked=false; row.lat=null; row.lng=null; row.candidates=null; row.issue='Sin verificar'; item.querySelector('.bulk-row-status').textContent=row.issue; proposal=null;}));
-      item.querySelector('.bulk-remove').onclick=()=>{draft.splice(i,1);preview();};
+      item.querySelector('.bulk-map-pick').onclick=()=>{
+        if(mapPickRow===row){mapPickRow=null;status('Selección de mapa cancelada.');return;}
+        mapPickRow=row;
+        status(`Pedido ${i+1}: abre el mapa y toca la ubicación exacta de «${row.address}». Vuelve a Pedidos después.`);
+        window.v3Navigate?.('map');
+      };
+      item.querySelector('.bulk-remove').onclick=()=>{if(mapPickRow===row)mapPickRow=null;draft.splice(i,1);preview();};
       table.append(item);
     });
     results.append(table);
-    status(`${draft.length} direcciones preparadas. Revísalas antes de localizar.`);
+    status(`${draft.length} direcciones preparadas. PASO 1: verifica cada ubicación o elige el punto manualmente en el mapa. PASO 2: calcula y aprueba la ruta.`);
     $('bulk-verify').disabled=false;
     $('bulk-proposal').classList.add('hidden');
   }
+  // El selector utiliza el clic sobre el mismo mapa, sin introducir GPS falsos.
+  window.domicilioBulkMapPick=(coords)=>{
+    if(!mapPickRow)return false;
+    const row=mapPickRow;mapPickRow=null;
+    row.lat=coords[0];row.lng=coords[1];row.checked=true;
+    row.issue=`Ubicación elegida manualmente: ${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}. Comprueba que corresponde a la dirección.`;
+    const idx=draft.indexOf(row);
+    if(idx>=0){const card=results.querySelectorAll('.bulk-item')[idx];if(card)card.querySelector('.bulk-row-status').textContent=row.issue;}
+    proposal=null;
+    window.v3Navigate?.('orders');
+    status(`Punto del pedido ${idx+1} seleccionado. ${draft.filter(x=>x.checked).length}/${draft.length} ubicaciones listas para calcular la ruta.`);
+    return true;
+  };
   $('bulk-parse').onclick=()=>{try{draft=uniqueRows(parseLines(input.value));preview();}catch(e){status(e.message,true);}};
   file.addEventListener('change',async()=>{
     const selected=file.files?.[0]; if(!selected)return;
@@ -160,11 +179,17 @@
   }
   $('bulk-optimize').onclick=async()=>{
     if(busy)return;
-    if(!draft.length||draft.some(r=>!r.checked||!Number.isFinite(r.lat)||!Number.isFinite(r.lng))){status('Primero verifica y confirma la ubicación de TODAS las direcciones.',true);return;}
+    if(!draft.length){status('No hay direcciones analizadas. Primero pega la lista y pulsa «Analizar lista».',true);return;}
+    const missing=draft.map((r,i)=>!r.checked||!Number.isFinite(r.lat)||!Number.isFinite(r.lng)?i+1:null).filter(Boolean);
+    if(missing.length){
+      status(`No se puede calcular todavía: ${missing.length} ubicación(es) sin verificar (pedido(s) ${missing.join(', ')}). Pulsa «1. Verificar ubicaciones» o «Elegir punto en mapa» en cada una. No se cambiarán los pedidos.`,true);
+      $('bulk-status')?.scrollIntoView?.({behavior:'smooth',block:'center'});
+      return;
+    }
     const existing=getRoutePedidos();
     const seen=new Set(existing.map(p=>normalize(p.address)+'|'+normalize(p.name)));
     const newRows=draft.filter(p=>!seen.has(normalize(p.address)+'|'+normalize(p.name)));
-    if(!newRows.length){status('Todos estos domicilios ya están en los pedidos pendientes.',true);return;}
+    if(!newRows.length){status('Esas direcciones ya figuran entre tus pedidos. Para reorganizarlas usa «Optimizar pedidos actuales (OSRM)», sin importarlas de nuevo.',true);return;}
     const locked=existing.length>0?existing[0]:null;
     const others=locked?existing.slice(1):existing;
     const origin=gpsPosition||startLocation;

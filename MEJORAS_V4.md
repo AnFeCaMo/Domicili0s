@@ -79,3 +79,11 @@ No se modificó Render ni GitHub. Se entrega un archivo comprimido sin la carpet
 - Se agregan seis reglas de interpretación a la memoria local sin borrar reglas previas. No se incorporó un modelo generativo: se utiliza lógica local verificable.
 - `node tests/test_v44_separation.js` revisa nueve casos; `node tests/test_v42_parse.js` comprueba listas.
 - Se actualiza la caché del service worker para entregar los scripts nuevos.
+
+## V4.5 — Importación de rutas copiadas y selección manual en mapa
+- El analizador de listas numeradas ignora «1.», «2.», «3.» como índices del recorrido, tanto si el cliente antecede a la dirección como si aparece después.
+- Extrae referencias después de raya larga (p. ej., «Apartamento de puerta negra», «La Floresta») y no las incorpora al nombre.
+- Revisión de pedidos antiguos: limpia numeraciones enumeradas sueltas al final del nombre.
+- El importador permite seleccionar en el mapa la ubicación de cada dirección cuando Nominatim no la reconoce. La elección es explícita y debe revisarse.
+- El botón de calcular indica las filas no verificadas; no genera rutas basadas en direcciones sin coordenadas.
+- El servicio OSRM público no incluye tráfico en vivo y la optimización depende de la calidad de los puntos verificados.
