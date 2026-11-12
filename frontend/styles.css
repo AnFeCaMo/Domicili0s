@@ -3001,3 +3001,11 @@ input:focus, textarea:focus, select:focus {
 
 /* El asistente solo vive en Configuración; no ocupa espacio en Inicio. */
 .ai-home-widget-card{display:none!important}
+
+/* V5.3.1: pedido visible durante toda la navegación, incluso sin GPS. */
+.nav-v4-destination{padding:11px 12px;border:1px solid rgba(120,120,140,.25);background:var(--card-bg,#fff);color:var(--text-primary,#222);border-radius:12px;margin:8px 0;overflow-wrap:anywhere}
+.nav-v4-destination-caption{font-size:.69rem;font-weight:800;letter-spacing:.06em;opacity:.75;margin-bottom:4px}
+#nav-v4-customer{display:block;font-size:1.03rem;line-height:1.3}
+#nav-v4-address{font-size:.96rem;line-height:1.4;margin-top:3px;font-weight:600}
+#nav-v4-reference{font-size:.84rem;margin-top:4px;opacity:.85}
+@media(max-width:600px){.nav-v4-destination{padding:10px}.nav-v4-buttons button{min-height:43px;white-space:normal}}

@@ -58,6 +58,21 @@
     }
   }
   function message(text, voice=false) { $('nav-v4-instruction').textContent=text; if(voice) announce(text); }
+  function showDestination(pedido) {
+    const customer=$('nav-v4-customer'),address=$('nav-v4-address'),reference=$('nav-v4-reference');
+    if(customer)customer.textContent=pedido?.name?.trim() || 'Cliente sin nombre';
+    if(address)address.textContent=pedido?.address?.trim() || 'Dirección no especificada';
+    if(reference) {
+      reference.textContent=pedido?.reference?.trim() ? `Referencia: ${pedido.reference.trim()}` : '';
+      reference.hidden=!pedido?.reference?.trim();
+    }
+  }
+  function resetDestination() {
+    ['nav-v4-customer','nav-v4-address','nav-v4-reference'].forEach(id=>{
+      const element=$(id);
+      if(element){element.textContent='';element.hidden=false;}
+    });
+  }
   function status(text) { $('nav-v4-state').textContent=text; }
   function removeLayer(layer) { if(layer && mapInstance) mapInstance.removeLayer(layer); }
   function removeArrows(list) { list.forEach(removeLayer); list.length=0; }
@@ -168,7 +183,7 @@
     if(pedido?.locationStatus==='estimada' && !confirm('La ubicación encontrada es aproximada, corresponde a la CALLE y no necesariamente a esta casa. ¿Quieres ver un recorrido orientativo y confirmar el domicilio al llegar?'))return;
     if(!pedido)return;
     if(pedido.needsLocationReview || pedido.lat == null || pedido.lng == null || !Number.isFinite(Number(pedido.lat)) || !Number.isFinite(Number(pedido.lng))) {
-      stop();target={id:pedido.id,number:pedido.number,coords:null};panel.hidden=false;
+      stop();showDestination(pedido);target={id:pedido.id,number:pedido.number,coords:null};panel.hidden=false;
       window.v3Navigate?.('map');status('Ubicación no localizada');
       message(`Pedido #${pedido.number}: ${pedido.name||'Cliente'}. Dirección: ${pedido.address||'sin dirección'}${pedido.reference?' · Referencia: '+pedido.reference:''}. Confirma la ubicación al llegar.`);
       $('nav-v53-capture')?.removeAttribute('hidden');return;
@@ -178,7 +193,7 @@
     removeLayer(line);line=null;removeArrows(arrows);
     $('nav-v53-capture')?.setAttribute('hidden','');
     destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)],approximate:pedido.locationStatus==='estimada'};
-    panel.hidden=false; window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
+    showDestination(pedido);panel.hidden=false; window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
     beginGps(); if(freshGps()) calculate();
     else navigator.geolocation?.getCurrentPosition(pos=>{updateGps(pos);calculate();},()=>{}, {enableHighAccuracy:true,timeout:15000});
   }
@@ -189,7 +204,7 @@
     destinationIsBase=true; target={id:null,coords:[...startLocation]}; arrived=false;resetVoiceGuidance();
     panel.hidden=false; window.v3Navigate?.('map'); beginGps(); calculate();
   }
-  function stop() {$('nav-v53-capture')?.setAttribute('hidden','');resetVoiceGuidance();routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
+  function stop() {$('nav-v53-capture')?.setAttribute('hidden','');resetDestination();resetVoiceGuidance();routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
   function deliver() {
     if(!target?.id) {message('Estás navegando al punto de salida, no a un pedido.');return;}
     const currentId=target.id;
@@ -208,8 +223,26 @@
       if(!autoNextCheckbox.checked) showToast(`Entregado. El siguiente es #${next.number}: ${next.address||'dirección pendiente'}`, 'success', 5500);
     } else showToast('Jornada sin pedidos pendientes. Finalízala cuando decidas.', 'success', 5500);
   }
-  $('nav-v4-lost').addEventListener('click',()=>{if(!target)return;lastReroute=Date.now();message('Buscando un nuevo recorrido desde tu ubicación.',true);calculate();});
-  $('nav-v4-repeat').addEventListener('click',()=>announce($('nav-v4-instruction').textContent,true));
+  $('nav-v4-lost').addEventListener('click',()=>{
+    if(!target)return;
+    if(!target.coords) {
+      message('No hay ubicación GPS para este domicilio. Revisa la dirección visible y confirma el punto al llegar.',true);
+      return;
+    }
+    if(!freshGps()) {
+      message('Esperando una ubicación GPS actual y precisa para buscar nuevamente el recorrido.',true);
+      beginGps();
+      return;
+    }
+    lastReroute=Date.now();
+    message('Estoy recalculando el recorrido desde tu ubicación actual.',true);
+    calculate();
+  });
+  $('nav-v4-repeat').addEventListener('click',()=>{
+    if(!target)return;
+    const instruction=$('nav-v4-instruction').textContent;
+    announce(instruction || `Destino: ${$('nav-v4-address')?.textContent || 'dirección pendiente'}`,true);
+  });
   $('nav-v4-return')?.addEventListener('click',back);
   $('nav-v53-capture')?.addEventListener('click',()=>{const p=pedidos.find(p=>p.id===target?.id);if(p)window.domicilioV5?.captureAtOrder?.(p);});
   $('nav-v4-stop').addEventListener('click',stop);

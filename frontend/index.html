@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V5.2</span>
+            <span class="brand-title">DOMICILIO V5.3.1</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -946,15 +946,21 @@
 
     <section id="nav-v4" class="nav-v4" aria-label="Navegación GPS" hidden>
       <div class="nav-v4-title">🧭 Navegación GPS <span id="nav-v4-state">Lista</span></div>
+      <div class="nav-v4-destination" aria-label="Pedido y dirección actuales">
+        <div class="nav-v4-destination-caption">ENTREGA ACTUAL</div>
+        <strong id="nav-v4-customer">Cliente sin nombre</strong>
+        <div id="nav-v4-address">Dirección pendiente</div>
+        <div id="nav-v4-reference" hidden></div>
+      </div>
       <div id="nav-v4-instruction" aria-live="polite">Elige un pedido y pulsa Ir al pedido.</div>
       <div id="nav-v4-details">Ubicación no iniciada</div>
       <label class="nav-v4-auto-next"><input type="checkbox" id="nav-v4-auto-next" checked> Ir automáticamente al siguiente pedido después de confirmar la entrega</label>
       <div class="nav-v4-buttons">
-        <button type="button" id="nav-v4-lost">↻ Estoy perdido</button>
-        <button type="button" id="nav-v4-repeat">🔊 Repetir</button>
+        <button type="button" id="nav-v4-lost">↻ Estoy perdido · Recalcular</button>
+        <button type="button" id="nav-v4-repeat">🔊 Repetir indicación</button>
         <button type="button" id="nav-v4-return" hidden>Regresar a base</button>
         <button type="button" id="nav-v53-capture" hidden>📍 Estoy en esta dirección</button>
-        <button type="button" id="nav-v4-arrived">✓ Entregado</button>
+        <button type="button" id="nav-v4-arrived">✓ Entregado · Detener navegación</button>
         <button type="button" id="nav-v4-stop">■ Detener</button>
       </div>
     </section>
@@ -970,7 +976,7 @@
     <script src="/static/route-optimizer.js"></script>
     <script src="/static/app.js"></script>
     <script src="/static/v3.js"></script>
-    <script src="/static/navigation.js"></script>
+    <script src="/static/navigation.js?v=531"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script defer src="/static/bulk.js?v=5"></script>
     <script defer src="/static/location-lookup.js?v=53"></script>
