@@ -53,6 +53,32 @@
     }
     return ordered;
   }
+  // Orden de respaldo: la nomenclatura es SOLO una aproximación; nunca produce coordenadas ficticias.
+  // Inserta puntos pendientes junto a tramos de direcciones similares, en vez de relegarlos todos al final.
+  function mergeUnknown(known, missing, lockedId=null) {
+    const output=[...known], pending=approximateOrder(missing,known);
+    const priority=p=>p.priority==='urgente'?0:p.priority==='prioritario'?1:2;
+    const xy=p=>{const n=nomenclature(p);return n?(n.street==='calle'?[n.b,n.a]:[n.a,n.b]):null;};
+    const measure=(a,b)=>{const x=xy(a),y=xy(b);return x&&y?Math.abs(x[0]-y[0])+Math.abs(x[1]-y[1]):null;};
+    for(const p of pending){
+      const minimum=lockedId&&output[0]?.id===lockedId?1:0;
+      let best=output.length, score=Infinity;
+      // Un domicilio sin nomenclatura comprobable permanece al final de la propuesta.
+      if(!xy(p)){output.push(p);continue;}
+      for(let i=minimum;i<=output.length;i++){
+        const prev=i>0?output[i-1]:null, next=i<output.length?output[i]:null;
+        // Mantener las prioridades explícitas además del orden geográfico aproximado.
+        if(prev&&priority(prev)>priority(p) || next&&priority(next)<priority(p))continue;
+        const left=prev?measure(prev,p):null,right=next?measure(p,next):null,old=prev&&next?measure(prev,next):null;
+        if(left===null&&right===null)continue;
+        const candidate=(left??0)+(right??0)-(old??0);
+        // Empates: mantener orden previo, sin mover la entrega que ya se está navegando.
+        if(candidate<score){score=candidate;best=i;}
+      }
+      output.splice(best,0,p);
+    }
+    return output;
+  }
   const delay=ms=>new Promise(r=>setTimeout(r,ms));
   const findLocation = async address => window.domicilioLocationLookup?.lookup(address) || {status:'error',reason:'Buscador de ubicaciones no cargado'};
   const findSaved = address => knownAddresses.find(x=>key(x.address)===key(address)&&valid(x));
@@ -61,18 +87,29 @@
     if(!window.isSecureContext){gpsIssue='La página necesita HTTPS para acceder al GPS';resolve(null);return;}
     if(!navigator.geolocation){gpsIssue='El navegador no ofrece el servicio de ubicación';resolve(null);return;}
     navigator.geolocation.getCurrentPosition(pos => {
-      gpsIssue='';resolve({coords:[pos.coords.latitude,pos.coords.longitude],accuracy:pos.coords.accuracy,time:Date.now()});
+      gpsIssue='';lastFreshGps={coords:[pos.coords.latitude,pos.coords.longitude],accuracy:pos.coords.accuracy,time:Date.now()};resolve(lastFreshGps);
     },e=>{
       gpsIssue=e.code===1?'Permiso de ubicación denegado. Actívalo para este sitio en Chrome y en los ajustes del celular.':e.code===2?'El teléfono no pudo determinar la ubicación; activa Ubicación y prueba al aire libre.':'El GPS tardó demasiado en responder; prueba con la ubicación activada.';
       resolve(null);
     },{enableHighAccuracy:true,maximumAge:4000,timeout:15000});
   });
-  let lastConfirmed=null;
+  let lastConfirmed=null, lastFreshGps=null;
   try{lastConfirmed=JSON.parse(localStorage.getItem('domicilio-v5-last-confirmed')||'null');}catch(_){}
   function currentOrigin(gps){
     if(gps && gps.accuracy<=100) return {point:gps.coords,label:'Tu GPS actual'};
-    if(Array.isArray(lastConfirmed?.coords))return {point:lastConfirmed.coords,label:'Último domicilio confirmado; GPS actual no disponible'};
+    if(Array.isArray(lastConfirmed?.coords) && lastConfirmed.coords.length===2 && lastConfirmed.coords.every(Number.isFinite))return {point:lastConfirmed.coords,label:'Último domicilio confirmado (origen aproximado; no es tu GPS actual)'};
     return {point:[...startLocation],label:'Punto de salida configurado; GPS actual no disponible'};
+  }
+  function routeOrigin(){
+    if(lastFreshGps && Date.now()-lastFreshGps.time<25000 && lastFreshGps.accuracy<=100)return lastFreshGps.coords;
+    if(lastConfirmed?.coords?.length===2 && lastConfirmed.coords.every(Number.isFinite))return lastConfirmed.coords;
+    return [...startLocation];
+  }
+  function recordDeliveredOrigin(coords, accuracy){
+    if(!Array.isArray(coords) || coords.length!==2 || !coords.every(Number.isFinite) || accuracy>50)return false;
+    lastConfirmed={coords:[...coords],at:new Date().toISOString(),source:'última entrega confirmada'};
+    try{localStorage.setItem('domicilio-v5-last-confirmed',JSON.stringify(lastConfirmed));}catch(_){}
+    return true;
   }
   function panel(source='routes'){
     let p=$('v5-proposal');
@@ -177,19 +214,22 @@
         notice(`Organizando ${known.length} ubicaciones por calles. ${missing.length} dirección(es) quedarán en la lista sin GPS.`);
         try{result=await calculateKnown(known,from.point,destination,lockedId);if(result.approx)warning='Lista grande: orden aproximado por proximidad GPS; no equivale a tiempos por calles.';}catch(e){warning=e.message;result.order=approximateOrder(known);}
       }
-      const unknown=approximateOrder(missing,result.order);
+      // Las ubicaciones pendientes se intercalan por nomenclatura, con aviso explícito.
       // Sin GPS no se pueden comparar distancias exactas entre conocidos y desconocidos.
       // Se mantiene la navegación activa, y se conserva el resto con orden provisional.
-      const proposed=[...result.order,...unknown];
+      const proposed=mergeUnknown(result.order,missing,lockedId);
+      if(lockedId && proposed[0]?.id!==lockedId){
+        const locked=proposed.find(p=>p.id===lockedId);if(locked){proposed.splice(proposed.indexOf(locked),1);proposed.unshift(locked);}
+      }
       if(!proposed.length)throw Error('No se encontraron pedidos para organizar');
       const snapshot=sig(old);
       visual.replaceChildren(text('h3','Propuesta de toda tu jornada'));
       visual.appendChild(text('p',`${proposed.length} entregas: ${known.length-estimated} con ubicación guardada/localizada, ${estimated} con punto aproximado de calle y ${missing.length} sin localizar. Origen: ${from.label}.`));
       if(gpsIssue || (gps && gps.accuracy>100))visual.appendChild(text('p',`Tu ubicación GPS: ${gpsIssue || 'precisión insuficiente (±'+Math.round(gps.accuracy)+' m)'}. Se usa un origen alternativo; puedes activar GPS en Chrome para mejorar la ruta.`));
-      if(result.minutes!==null)visual.appendChild(text('p',`Tiempo estimado de los destinos con GPS: ${result.minutes} minutos, sin tiempo de entrega ni tráfico en vivo.`));
+      if(result.minutes!==null)visual.appendChild(text('p',`Tiempo estimado SOLO para las paradas localizadas: ${result.minutes} minutos, sin considerar las paradas sin GPS, los tiempos de entrega ni el tráfico en vivo.`));
       if(warning)visual.appendChild(text('p','No se pudo calcular por calles: '+warning+'. Se conserva el orden provisional.'));
       if(estimated)visual.appendChild(text('p',`${estimated} destino(s) están ubicados SOLO por la calle: el marcador NO corresponde necesariamente a la casa. Confirma el número al llegar; el recorrido es orientativo.`));
-      if(missing.length)visual.appendChild(text('p',`No se encontraron ${missing.length} dirección(es) en el mapa. Se mantienen en la lista. ${errors?'Algunas búsquedas fallaron por conexión o límite del servicio.':''}`));
+      if(missing.length)visual.appendChild(text('p',`Hay ${missing.length} dirección(es) sin coordenadas. Se intercalaron por calles/carreras cuando fue posible: el orden es SOLO aproximado y no hay ruta GPS hasta localizar esos domicilios. ${errors?'Algunas búsquedas fallaron por conexión o límite del servicio.':''}`));
       appendOrderList(visual,proposed);
       const accept=text('button','✓ Aprobar, guardar y mostrar ruta');accept.type='button';accept.className='btn btn-purple-primary';
       const cancel=text('button','Conservar mi orden');cancel.type='button';cancel.className='btn btn-outline';
@@ -232,7 +272,7 @@
   }
   // Reoptimizar en una propuesta, jamás alterar silenciosamente la ruta activa.
   window.domicilioSuggestAfterDelivery=()=>{if(getRoutePedidos().length>=2){optimize({afterDelivery:true});showToast('Revisando una posible mejora para los pedidos pendientes.','info');}};
-  window.domicilioV5={optimize,captureAtOrder,approximateOrder,valid,get lastConfirmed(){return lastConfirmed;}};
+  window.domicilioV5={optimize,captureAtOrder,approximateOrder,mergeUnknown,routeOrigin,recordDeliveredOrigin,valid,get lastConfirmed(){return lastConfirmed;}};
   [$('v5-optimize-all'),$('v5-optimize-orders')].filter(Boolean).forEach(btn=>btn.addEventListener('click',()=>optimize({source:btn.id==='v5-optimize-orders'?'orders':'routes'})));
   $('v5-mobile-end-shift')?.addEventListener('click',()=>$('menu-end-shift')?.click());
   installRules();

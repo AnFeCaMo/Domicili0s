@@ -32,6 +32,7 @@
     const now=Date.now();
     if(now-lastSpokenAt<9000 && stage<3) return;
     const action=stepText(next.step);
+    if(next.step.maneuver?.type==='arrive' && stage===3){voiceStage.set(next.i,stage);message('Has llegado a las proximidades del destino. Confirma la dirección.',true);return;}
     const statement=stage===3?`Ahora, ${action}`:stage===2?`En 50 metros, ${action}`:`En 100 metros, ${action}`;
     voiceStage.set(next.i,stage);
     lastSpokenAt=now;
@@ -95,7 +96,7 @@
     const remaining=distance(point,target.coords);
     $('nav-v4-details').textContent=`Distancia directa: ${Math.round(remaining)} m · Precisión GPS: ±${Math.round(gpsAccuracy)} m${navigator.onLine?'':' · Sin conexión'}`;
     if(gpsAccuracy>80) {status('GPS impreciso');return;}
-    if(remaining<Math.max(35,gpsAccuracy+15) && !arrived) {arrived=true; status('Cerca del destino');message('Estás cerca del destino. Comprueba la dirección antes de marcar la entrega.',true);return;}
+    if(remaining<Math.max(35,gpsAccuracy+15) && !arrived) {arrived=true; status('Cerca del destino');message(target.approximate?'Estás cerca del punto estimado de la calle, NO necesariamente de la vivienda. Verifica el número y la referencia.':'Estás cerca del destino. Comprueba la dirección antes de marcar la entrega.',true);return;}
     if(!route || !steps.length) return;
     guideAtGps();
     // Solo recalcular con desvío persistente aproximado y con intervalo mínimo.
@@ -120,7 +121,8 @@
     if(m.type==='arrive') return 'Has llegado al destino';
     if(m.type==='depart') return `Inicia el recorrido${road}`;
     if(m.type==='roundabout'||m.type==='rotary') return `En la glorieta, toma la salida ${m.exit||'indicada'}${road}`;
-    return `${direction[m.modifier]|| (m.type==='continue'?'continúa derecho':'continúa por la vía')}${road}`;
+    const modifier=String(m.modifier||'').trim().toLowerCase().replace(/[ -]+/g,'_');
+    return `${direction[modifier]|| (m.type==='continue'?'continúa derecho':'continúa por la vía')}${road}`;
   }
   async function calculate() {
     if(calculating || !target) return;
@@ -168,7 +170,7 @@
     // No reutilizar instrucciones o geometría del pedido anterior.
     routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;lastVoice='';resetVoiceGuidance();
     removeLayer(line);line=null;removeArrows(arrows);
-    destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)]};
+    destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)],approximate:pedido.locationStatus==='estimada'};
     panel.hidden=false; window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
     beginGps(); if(freshGps()) calculate();
     else navigator.geolocation?.getCurrentPosition(pos=>{updateGps(pos);calculate();},()=>{}, {enableHighAccuracy:true,timeout:15000});
@@ -185,7 +187,9 @@
     const currentId=target.id;
     const p=pedidos.find(p=>p.id===currentId);if(!p)return;
     if(!confirm(`¿Confirmas que entregaste el pedido #${p.number}?`))return;
-    p.status='entregado';p.deliveredAt=new Date().toISOString();updatePedidoMarker(p);saveState();renderPedidoList();window.v3Refresh?.();
+    p.status='entregado';p.deliveredAt=new Date().toISOString();
+    if(freshGps() && gpsAccuracy<=50)window.domicilioV5?.recordDeliveredOrigin?.([...point],gpsAccuracy);
+    updatePedidoMarker(p);saveState();renderPedidoList();window.v3Refresh?.();
     // La lista de pedidos conserva el orden manual/optimizado aprobado por el usuario.
     const pending=getRoutePedidos();
     const next=pending[0];

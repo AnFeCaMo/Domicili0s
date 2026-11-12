@@ -2969,3 +2969,21 @@ input:focus, textarea:focus, select:focus {
 #home-quick-return,#home-quick-stats{display:none!important}
 .quick-actions-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 @media(max-width:600px){.quick-actions-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* V5.2 — En pantallas pequeñas, el encabezado y el perfil no deben quedar recortados. */
+@media (max-width: 760px) {
+  .app-top-header { box-sizing:border-box; width:100%; max-width:100%; }
+  .header-left {min-width:0;flex:1 1 auto;}
+  .brand-titles {min-width:0;}
+  .brand-subtitle {display:none;}
+  .header-right {display:flex;flex-wrap:nowrap;flex-shrink:0;}
+  .user-profile-menu-wrap {display:block!important;flex-shrink:0;}
+  .v5-mobile-end {display:inline-flex!important;}
+  .bulk-card, .route-panel-card {max-width:100%;box-sizing:border-box;}
+  #v5-optimize-orders, #v5-optimize-all {width:100%;min-height:48px;white-space:normal;}
+}
+@media (max-width: 420px) {
+  .header-right #notifications-btn, .header-right #theme-toggle {display:none!important;}
+  .brand-version-pill {display:none;}
+  .app-top-header {gap:3px!important;}
+}

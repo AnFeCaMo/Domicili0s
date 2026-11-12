@@ -1,3 +1,7 @@
+# DOMICILIO V5.2 — Aplicación completa
+
+Correcciones: ver [MEJORAS_V5_2.md](MEJORAS_V5_2.md). Para instalación: [INSTALAR_V5_2.md](INSTALAR_V5_2.md).
+
 # DOMICILIO V5 — Sistema inteligente de reparto
 
 La **versión 5** integra los cambios de navegación, memoria local, revisión de direcciones, GPS de llegada, propuesta unificada y diseño adaptativo. Para detalles funcionales y limitaciones consulta [MEJORAS_V5.md](MEJORAS_V5.md) y [INSTALAR_V5.md](INSTALAR_V5.md).

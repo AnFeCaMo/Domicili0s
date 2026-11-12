@@ -31,7 +31,6 @@
       const lat=Number(item.lat),lng=Number(item.lon);if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)continue;
       // No mandar al domiciliario a otra ciudad aunque el buscador devuelva un nombre parecido.
       if(meters([lat,lng],center)>30000)continue;
-      const matchText=strip([item.display_name,item.address?.road,item.address?.pedestrian].filter(Boolean).join(' '));
       if(wantedRoad && road(item.address?.road||item.address?.pedestrian||item.display_name)!==wantedRoad)continue;
       const itemHouse=strip(item.address?.house_number||'');
       const exact=Boolean(h && itemHouse && itemHouse.replace(/\s+/g,'').replace(/-/g,'')===(h[0]+h[1]));

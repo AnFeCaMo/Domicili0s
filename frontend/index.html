@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V5</span>
+            <span class="brand-title">DOMICILIO V5.2</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -469,10 +469,10 @@
             <button type="button" class="btn btn-purple-primary btn-lg" id="v5-optimize-orders">🧭 Optimizar toda mi ruta</button>
             <div class="bulk-actions v5-legacy-actions">
               <button id="bulk-verify" type="button" class="btn btn-secondary" disabled hidden>Verificar ubicaciones</button>
-              <button id="bulk-optimize" type="button" class="btn btn-purple-primary">2. Calcular ruta y solicitar aprobación</button>
+              <button id="bulk-optimize" type="button" class="btn btn-purple-primary" hidden aria-hidden="true" tabindex="-1">Calcular ruta</button>
             </div>
             <div id="bulk-proposal" class="bulk-proposal hidden"></div>
-            <p class="bulk-note">La próxima parada activa queda protegida. Se utilizan tiempos y distancias por carretera cuando OSRM está disponible. La ubicación y el orden se deben revisar antes de iniciar.</p>
+            <p class="bulk-note">La próxima parada activa queda protegida. Se utilizan tiempos y distancias por carretera cuando el servicio de rutas está disponible. La ubicación y el orden se deben revisar antes de iniciar.</p>
           </section>
 
           <!-- Formulario de Pedido (ID "pedido-form-wrapper" y "pedido-form") -->
@@ -637,7 +637,7 @@
             <div class="card route-panel-card">
               <h3 class="panel-card-title"><i data-lucide="list-ordered" class="text-green"></i> Resumen de la Ruta</h3>
               <div id="route-summary" class="route-summary-box">
-                <p class="text-secondary">Sin ruta calculada. Agrega pedidos y presiona "Trazar ruta".</p>
+                <p class="text-secondary">Sin ruta calculada. Agrega pedidos y presiona «Optimizar toda mi ruta».</p>
               </div>
             </div>
           </div>
@@ -966,7 +966,7 @@
     <script src="/static/navigation.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script defer src="/static/bulk.js?v=5"></script>
-    <script defer src="/static/location-lookup.js?v=51"></script>
-    <script defer src="/static/v5.js?v=51"></script>
+    <script defer src="/static/location-lookup.js?v=52"></script>
+    <script defer src="/static/v5.js?v=52"></script>
   </body>
 </html>

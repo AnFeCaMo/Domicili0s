@@ -444,7 +444,7 @@ function renderRouteSummary(data, routeOrders = []) {
   const statsDist = document.getElementById('stats-total-dist');
 
   if (!data) {
-    if (routeSummary) routeSummary.innerHTML = '<p class="text-secondary">Sin ruta calculada. Agrega pedidos y presiona "Trazar ruta en el mapa".</p>';
+    if (routeSummary) routeSummary.innerHTML = '<p class="text-secondary">Sin ruta calculada. Agrega pedidos y pulsa «Optimizar toda mi ruta».</p>';
     if (dashDist) dashDist.textContent = '0.0 km';
     if (dashTime) dashTime.textContent = '0 min';
     if (statsDist) statsDist.textContent = '0.0 km';
@@ -469,7 +469,7 @@ function renderRouteSummary(data, routeOrders = []) {
       <div style="font-size: 0.88rem; color: var(--text-secondary);">
         <strong>Secuencia recomendada (según datos disponibles):</strong>
         <ol style="margin-left: 20px; margin-top: 6px;">
-          ${routeOrders.map(p => `<li>#${p.number} — ${p.name || p.address || 'Sin nombre'}</li>`).join('')}
+          ${routeOrders.map(p => `<li>#${escapePedidoHtml(p.number)} — ${escapePedidoHtml(p.name || p.address || 'Sin nombre')}</li>`).join('')}
         </ol>
       </div>
     `;
@@ -685,6 +685,9 @@ function resetPedidoForm() {
   clearAddressFeedback();
 }
 
+function escapePedidoHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function updatePedidoMarker(pedido) {
   const existingMarker = pedidoMarkers.get(pedido.id);
   if (existingMarker) {
@@ -692,7 +695,7 @@ function updatePedidoMarker(pedido) {
     pedidoMarkers.delete(pedido.id);
   }
 
-  if (!Number.isFinite(pedido.lat) || !Number.isFinite(pedido.lng)) return;
+  if (!Number.isFinite(pedido.lat) || !Number.isFinite(pedido.lng) || pedido.needsLocationReview) return;
   const marker = L.marker([pedido.lat, pedido.lng], {
     title: formatPedidoText(pedido),
     opacity: pedido.status === 'entregado' ? 0.45 : 1.0,
@@ -700,10 +703,10 @@ function updatePedidoMarker(pedido) {
 
   marker.bindPopup(`
     <div style="font-family: 'Inter', sans-serif; font-size: 13px;">
-      <strong>#${pedido.number} · ${pedido.name || 'Cliente'}</strong><br/>
-      ${pedido.address || 'Ubicación en mapa'}<br/>
+      <strong>#${escapePedidoHtml(pedido.number)} · ${escapePedidoHtml(pedido.name || 'Cliente')}</strong><br/>
+      ${escapePedidoHtml(pedido.address || 'Ubicación en mapa')}<br/>
       <span style="font-weight: 700; color: ${pedido.status === 'entregado' ? 'var(--success)' : 'var(--warning)'};">
-        ${pedido.status.toUpperCase()}
+        ${escapePedidoHtml(pedido.status.toUpperCase())}
       </span>
     </div>
   `);
@@ -722,7 +725,7 @@ async function calculateRoute() {
   calculateRouteButton.disabled = true;
   showToast('Dibujando tu recorrido por calles...', 'info');
 
-  const origin = gpsPosition || window.domicilioV5?.lastConfirmed?.coords || startLocation;
+  const origin = window.domicilioV5?.routeOrigin?.() || startLocation;
   const finalPoint = window.v3Destination?.point || ((window.v3Destination?.mode === 'start' || returnToStartInput.checked) ? startLocation : null);
   const known = activePedidos.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !p.needsLocationReview);
   if (!known.length) { clearRoute(); calculateRouteButton.disabled=false; routeSummary.textContent = 'Todos los pedidos siguen en tu lista. Falta ubicar alguno para dibujar una ruta GPS real.'; return; }
@@ -1263,12 +1266,13 @@ function gpsUpdate(position) {
   gpsPosition = [position.coords.latitude, position.coords.longitude];
   const gpsStatus = document.getElementById('gps-status');
   if (gpsStatus) {
-    gpsStatus.innerHTML = `<span>GPS: ${formatCoordinates(gpsPosition)} · precisión ±${Math.round(position.coords.accuracy)} m</span>`;
+    gpsStatus.textContent = `GPS: ${formatCoordinates(gpsPosition)} · precisión ±${Math.round(position.coords.accuracy)} m`;
   }
 
   if (getRoutePedidos().length && position.coords.accuracy <= 60) {
     const next = getRoutePedidos()[0];
-    const meters = haversineDistance(gpsPosition, [next.lat, next.lng]) * 1000;
+    const meters = Number.isFinite(next.lat) && Number.isFinite(next.lng) && next.locationStatus !== 'estimada'
+      ? haversineDistance(gpsPosition, [next.lat, next.lng]) * 1000 : Infinity;
     if (meters < Math.max(30, position.coords.accuracy)) {
       const msg = `Estás cerca del pedido #${next.number} (${next.name || 'Cliente'}).`;
       if (!gpsUpdate.announced || gpsUpdate.announced !== next.id) {
@@ -1301,7 +1305,7 @@ function startGps() {
   gpsWatchId = navigator.geolocation.watchPosition(
     gpsUpdate,
     (err) => {
-      if (gpsStatus) gpsStatus.innerHTML = `<span>GPS error: ${err.message}</span>`;
+      if (gpsStatus) gpsStatus.textContent = `GPS error: ${err.message}`;
       showToast('Error GPS: ' + err.message, 'warning');
     },
     { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }

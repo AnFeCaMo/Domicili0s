@@ -329,10 +329,9 @@
           minute: '2-digit',
           second: '2-digit',
         });
-        row.innerHTML = `
-          <span><strong style="color: var(--purple-main);">${timeStr}</strong> · ${a.action}</span>
-          <small class="text-muted">${a.details || ''}</small>
-        `;
+        const heading=document.createElement('span');heading.textContent=`${timeStr} · ${a.action}`;
+        const details=document.createElement('small');details.className='text-muted';details.textContent=a.details||'';
+        row.append(heading,details);
         auditList.append(row);
       });
       if (!(window.v3Audit || []).length) {
@@ -346,7 +345,7 @@
       settingsRules.replaceChildren();
       learnedRules.forEach((rule, idx) => {
         const row = document.createElement('p');
-        row.innerHTML = `<span>• ${rule.text}</span>`;
+        const label=document.createElement('span');label.textContent=`• ${rule.text}`;row.appendChild(label);
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.className = 'btn btn-xs btn-danger-outline';
@@ -387,7 +386,7 @@
       savedPlacesList.replaceChildren();
       places.forEach((place) => {
         const row = document.createElement('p');
-        row.innerHTML = `<span><strong>${place.name}</strong> · ${place.point.map((x) => x.toFixed(4)).join(', ')}</span>`;
+        const label=document.createElement('span');label.textContent=`${place.name} · ${place.point.map((x) => x.toFixed(4)).join(', ')}`;row.appendChild(label);
         const del = document.createElement('button');
         del.type = 'button';
         del.textContent = 'Eliminar';
