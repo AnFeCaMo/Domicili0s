@@ -22,7 +22,7 @@ class ApplicationSmokeTests(unittest.TestCase):
         self.assertEqual(json.loads(body), {
             "status": "ok",
             "service": "backend",
-            "version": "5.3.3",
+            "version": "5.3.4",
         })
 
     def test_frontend_contains_map_and_order_workflow(self) -> None:
@@ -44,6 +44,7 @@ class ApplicationSmokeTests(unittest.TestCase):
             ("/static/styles.css", "text/css"),
             ("/static/v3.js", "text/javascript"),
             ("/static/v53.js", "text/javascript"),
+            ("/static/route-audit-v534.js", "text/javascript"),
         ):
             _, content_type = self.get(path)
             self.assertEqual(content_type, expected_type)

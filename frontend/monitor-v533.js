@@ -20,7 +20,7 @@
   const critical=(key,message,orderId)=>({key,level:'critical',message,orderId});
   const warning=(key,message,orderId)=>({key,level:'warning',message,orderId});
   const info=(key,message,orderId)=>({key,level:'info',message,orderId});
-  let enabled=true,lastAccepted=null,gpsIssue=null,lastChecked=0,notifications=new Set(),lastWarnings=[];
+  let enabled=true,lastAccepted=null,gpsIssue=null,lastChecked=0,notifications=new Set(),lastWarnings=[],routeAudit=null;
   try{enabled=localStorage.getItem(STORAGE_KEY)!=='false';}catch(_){}
   const check=$('monitor-v533-enabled');if(check)check.checked=enabled;
   function gpsTime(position){const raw=Number(position?.timestamp),now=Date.now();return raw>0&&raw<=now+15000?raw:now;}
@@ -76,6 +76,10 @@
     }
     return alerts;
   }
+  function ingestRouteAudit(assessment,orderId=null){
+    routeAudit=assessment?.valid?{assessment,orderId,at:Date.now()}:null;
+    if(enabled)reviewAll();
+  }
   function ruleAlerts(){
     const rules=window.domicilioMonitorData?.().rules||[];
     if(!rules.length)return [];
@@ -93,6 +97,7 @@
     const result=[];
     for(const p of active.slice(0,250))result.push(...orderAlerts(p));
     if(active.length>250)result.push(info('many-orders',`Se revisaron los primeros 250 de ${active.length} pedidos; divide jornadas muy grandes para reducir carga.`));
+    if(routeAudit?.assessment?.issues?.length && now-routeAudit.at<180000)result.unshift(warning('route-detour','Ruta actual: '+routeAudit.assessment.issues.join(' '),routeAudit.orderId));
     if(gpsIssue && now-gpsIssue.at<45000)result.unshift(warning('gps',gpsIssue.message));
     if(lastAccepted && now-lastAccepted.time>30000)result.unshift(warning('stale-gps','No hay una lectura GPS reciente. La ubicación mostrada puede estar desactualizada.'));
     // Nunca utilizar una posición fuera de época como origen fiable.
@@ -123,7 +128,7 @@
   function setEnabled(v){enabled=!!v;try{localStorage.setItem(STORAGE_KEY,String(enabled));}catch(_){}reviewAll();}
   check?.addEventListener('change',()=>setEnabled(check.checked));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)reviewAll();});
-  window.domicilioMonitor={examineGps,ingestGps,reviewAll,orderAlerts,addressParts,analyze,setEnabled,get enabled(){return enabled;},get lastGps(){return lastAccepted;},get lastWarnings(){return [...lastWarnings];}};
+  window.domicilioMonitor={examineGps,ingestGps,ingestRouteAudit,reviewAll,orderAlerts,addressParts,analyze,setEnabled,get enabled(){return enabled;},get lastGps(){return lastAccepted;},get lastWarnings(){return [...lastWarnings];}};
   // Revisión ligera de pedidos. No consulta servicios externos ni inicia GPS sin permiso.
   setInterval(()=>{if(!document.hidden)reviewAll();},8000);
   reviewAll();

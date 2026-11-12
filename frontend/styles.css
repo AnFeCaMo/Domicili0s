@@ -3022,3 +3022,7 @@ input:focus, textarea:focus, select:focus {
 
 /* V5.3.3 - Monitor visible y accesible sin agregar otra pestaña. */
 .monitor-v533{margin-block:12px}.monitor-v533-head{display:flex;gap:12px;align-items:start;justify-content:space-between;flex-wrap:wrap}.monitor-v533-head h3{margin:0 0 6px;font-size:1rem}.monitor-v533-head p{margin:0}.monitor-v533-toggle{display:flex;align-items:center;gap:8px;white-space:nowrap;font-weight:600}.monitor-v533-alerts{list-style:none;padding:0;margin:8px 0;display:grid;gap:8px}.monitor-v533-alerts li{border-left:4px solid #bb8a20;background:rgba(186,138,32,.09);padding:9px 11px;border-radius:7px;overflow-wrap:anywhere}.monitor-v533-alerts li[data-level="critical"]{border-left-color:#c0262d;background:rgba(220,38,38,.08)}.monitor-v533-alerts li[data-level="info"]{border-left-color:#2479b8;background:rgba(36,121,184,.08)}.monitor-v533-route-alert{border-left:3px solid #be8c25;padding:8px 10px;overflow-wrap:anywhere;font-size:.85rem}.monitor-v533-route-alert:empty{display:none}@media(max-width:640px){.monitor-v533-head{flex-direction:column}.monitor-v533-toggle{min-height:42px}}
+
+/* Verificación visual de rutas que dan vueltas inusuales. */
+.nav-v534-route-warning{padding:12px 14px;border:2px solid #b45309;border-radius:12px;background:#fff7ed;color:#7c2d12;font-size:.91rem;line-height:1.5;margin:10px 0;font-weight:600;overflow-wrap:anywhere}
+.nav-v534-route-warning[hidden]{display:none!important}

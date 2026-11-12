@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const vm=require('node:vm');
+const ctx={window:{}};vm.createContext(ctx);vm.runInContext(fs.readFileSync('frontend/route-audit-v534.js','utf8'),ctx);
+const audit=ctx.window.domicilioRouteAudit;
+const a=[11,-74],b=[11,-73.99943]; // ~63 m al este
+const route=(meters,seconds)=>({distance:meters,duration:seconds,geometry:{coordinates:[[a[1],a[0]],[b[1],b[0]]]},legs:[]});
+let result=audit.evaluate(a,b,{routes:[route(1100,290)],waypoints:[{distance:8},{distance:13}]});
+assert(result.suspicious && result.longDetour,'Debe avisar si ruta de 1.1 km frente a 63m directos');
+assert(result.issues.some(s=>s.includes('recorrido por calles')));
+result=audit.evaluate(a,b,{routes:[route(95,50)],waypoints:[{distance:6},{distance:5}]});
+assert(!result.suspicious,'Ruta corta correcta no debe alertar');
+result=audit.evaluate(a,b,{routes:[route(90,60)],waypoints:[{distance:7},{distance:115}]});
+assert(result.issues.some(s=>s.includes('final')),'Debe detectar un destino mal ajustado a la red');
+result=audit.evaluate(a,b,{routes:[route(1000,200),route(120,45)],waypoints:[{distance:7},{distance:5}]});
+assert.equal(result.routeMeters,120,'Debe preferir alternativa más rápida');
+result=audit.evaluate(a,b,{routes:[route(1100,200),route(180,240)],waypoints:[{distance:7},{distance:5}]});
+assert.equal(result.routeMeters,180,'Debe preferir una alternativa mucho más corta aunque sea ligeramente más lenta');
+const nav=fs.readFileSync('frontend/navigation.js','utf8');
+assert(nav.includes('llegarás a las proximidades del destino'),'No anunciar llegada anticipada');
+assert(nav.includes('domicilioRouteAudit?.evaluate'),'Navegación debe aplicar auditoría');
+const html=fs.readFileSync('frontend/index.html','utf8');
+assert(html.includes('route-audit-v534.js')&&html.includes('nav-v534-route-warning'));
+console.log('V5.3.4: rutas largas, destino mal ajustado, alternativas y voz de llegada: OK');

@@ -1,8 +1,10 @@
-# DOMICILIO V5.3.3
+# DOMICILIO V5.3.4
 
-**Versión actual: 5.3.3.** Repositorio: https://github.com/AnFeCaMo/Domicili0s
+**Versión actual: 5.3.4.** Repositorio: https://github.com/AnFeCaMo/Domicili0s
 
-**Novedades:** editor, selección y borrado masivo de reglas sin reinstalación automática; búsqueda de intersecciones Calle/Carrera sin asignar falsos domicilios. Lee [MEJORAS_V5_3_2.md](MEJORAS_V5_3_2.md), [INSTALAR_V5_3_2.md](INSTALAR_V5_3_2.md) y [PRUEBAS_V5_3_2.md](PRUEBAS_V5_3_2.md).
+**Mejoras V5.3.4:** auditoría de rodeos excesivos, comprobación del ajuste de origen/destino, revisión de alternativas viales permitidas y avisos de llegada consistentes. Véanse `MEJORAS_V5_3_4.md` y `PRUEBAS_V5_3_4.md`.
+
+**Funciones anteriores conservadas:** editor, selección y borrado masivo de reglas sin reinstalación automática; búsqueda de intersecciones Calle/Carrera sin asignar falsos domicilios. Lee [MEJORAS_V5_3_2.md](MEJORAS_V5_3_2.md), [INSTALAR_V5_3_2.md](INSTALAR_V5_3_2.md) y [PRUEBAS_V5_3_2.md](PRUEBAS_V5_3_2.md).
 
 # DOMICILIO V5.3.1
 

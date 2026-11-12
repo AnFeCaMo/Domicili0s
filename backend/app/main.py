@@ -9,8 +9,8 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 
 app = FastAPI(
     title="Sistema de rutas para domicilios en Ciénaga",
-    version="5.3.3",
-    description="DOMICILIO V5.3.3: navegación, optimización unificada y memoria de ubicaciones.",
+    version="5.3.4",
+    description="DOMICILIO V5.3.4: navegación, optimización unificada y memoria de ubicaciones.",
 )
 
 
@@ -19,7 +19,7 @@ async def health_check() -> dict:
     return {
         "status": "ok",
         "service": "backend",
-        "version": "5.3.3",
+        "version": "5.3.4",
     }
 
 

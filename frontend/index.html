@@ -5,7 +5,7 @@
     <meta name="theme-color" content="#6D28D9" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>DOMICILIO V5.3.3 · Asistente Inteligente de Reparto</title>
+    <title>DOMICILIO V5.3.4 · Asistente Inteligente de Reparto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V5.3.3</span>
+            <span class="brand-title">DOMICILIO V5.3.4</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -555,7 +555,7 @@
         <section id="routes-view" class="v3-view-screen hidden">
           <div class="screen-page-header">
             <div>
-              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.3.3</h2>
+              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.3.4</h2>
               <p class="screen-page-subtitle">Tu ubicación GPS actual será el origen. No hay regreso automático.</p>
             </div>
           </div>
@@ -932,7 +932,7 @@
             <!-- 5. Información del Proyecto y Autor -->
             <div class="card settings-section-card about-app-card">
               <div class="about-app-inner">
-                <h4>DOMICILIO V5.3.3 · Asistente Inteligente de Reparto</h4>
+                <h4>DOMICILIO V5.3.4 · Asistente Inteligente de Reparto</h4>
                 <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
                 <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
               </div>
@@ -982,6 +982,7 @@
       </div>
       <div id="nav-v4-instruction" aria-live="polite">Elige un pedido y pulsa Ir al pedido.</div>
       <div id="nav-v4-details">Ubicación no iniciada</div>
+      <p id="nav-v534-route-warning" class="nav-v534-route-warning" role="alert" hidden></p>
       <label class="nav-v4-auto-next"><input type="checkbox" id="nav-v4-auto-next" checked> Ir automáticamente al siguiente pedido después de confirmar la entrega</label>
       <div class="nav-v4-buttons">
         <button type="button" id="nav-v4-lost">↻ Estoy perdido · Recalcular</button>
@@ -1004,13 +1005,14 @@
     <script src="/static/route-optimizer.js"></script>
     <script src="/static/app.js?v=533"></script>
     <script src="/static/v3.js?v=533"></script>
-    <script src="/static/navigation.js?v=533"></script>
+    <script src="/static/route-audit-v534.js?v=534"></script>
+    <script src="/static/navigation.js?v=534"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script defer src="/static/bulk.js?v=5"></script>
     <script defer src="/static/location-lookup.js?v=533"></script>
     <script defer src="/static/v5.js?v=533"></script>
     <script defer src="/static/v53.js?v=533"></script>
     <script defer src="/static/rules-manager.js?v=533"></script>
-    <script defer src="/static/monitor-v533.js?v=533"></script>
+    <script defer src="/static/monitor-v533.js?v=534"></script>
   </body>
 </html>
