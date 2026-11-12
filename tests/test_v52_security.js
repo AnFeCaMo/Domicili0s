@@ -6,7 +6,8 @@ const html=fs.readFileSync(path.join(__dirname,'../frontend/index.html'),'utf8')
 assert(app.includes('escapePedidoHtml(pedido.name') && app.includes('escapePedidoHtml(pedido.address'));
 assert(app.includes('escapePedidoHtml(p.name || p.address'));
 assert(v3.includes('details.textContent=a.details'));
-assert(v3.includes('label.textContent=`• ${rule.text}`'));
+const manager=fs.readFileSync(path.join(__dirname,'../frontend/rules-manager.js'),'utf8');
+assert(manager.includes('content.textContent=rule.text')); // las reglas se muestran como texto, no HTML
 assert(nav.includes(".replace(/[ -]+/g,'_')"),'Las variantes OSRM slight left/right deben funcionar');
 assert(nav.includes('recordDeliveredOrigin'));
 assert(/id="bulk-optimize"[^>]*hidden/.test(html));

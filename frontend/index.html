@@ -5,7 +5,7 @@
     <meta name="theme-color" content="#6D28D9" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>DOMICILIO V4 · Asistente Inteligente de Reparto</title>
+    <title>DOMICILIO V5.3.2 · Asistente Inteligente de Reparto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V5.3.1</span>
+            <span class="brand-title">DOMICILIO V5.3.2</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -553,7 +553,7 @@
         <section id="routes-view" class="v3-view-screen hidden">
           <div class="screen-page-header">
             <div>
-              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.3</h2>
+              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.3.2</h2>
               <p class="screen-page-subtitle">Tu ubicación GPS actual será el origen. No hay regreso automático.</p>
             </div>
           </div>
@@ -838,11 +838,26 @@
             <div class="card settings-section-card">
               <h3 class="panel-card-title"><i data-lucide="brain" class="text-purple"></i> Memoria del Cerebro IA</h3>
               <p class="text-secondary small">Instrucciones y preferencias que el asistente tiene memorizadas.</p>
+              <div class="rules-v532-tools">
+                <label class="small" for="v532-rule-search">Buscar reglas</label>
+                <input type="search" id="v532-rule-search" placeholder="Buscar por palabra o categoría" autocomplete="off" />
+                <div class="rules-v532-toolbar">
+                  <button type="button" id="v532-select-all" class="btn btn-outline btn-sm">Seleccionar visibles</button>
+                  <button type="button" id="v532-select-duplicates" class="btn btn-outline btn-sm">Buscar repetidas</button>
+                  <button type="button" id="v532-clear-selection" class="btn btn-outline btn-sm">Deseleccionar</button>
+                  <button type="button" id="v532-delete-selected" class="btn btn-danger-outline btn-sm" disabled>Eliminar seleccionadas (0)</button>
+                </div>
+                <p class="small text-secondary" id="v532-rule-count" role="status"></p>
+              </div>
               <div id="settings-rules" class="rules-chips-list"></div>
-              <button type="button" id="settings-add-rule-btn" class="btn btn-purple-outline btn-sm">
-                <i data-lucide="plus"></i>
-                <span>Agregar regla manual</span>
-              </button>
+              <div class="rules-v532-editor">
+                <label for="v532-rule-text" id="v532-editor-label">Agregar una regla</label>
+                <textarea id="v532-rule-text" rows="3" maxlength="1500" placeholder="Escribe la regla que quieres guardar o editar"></textarea>
+                <div class="rules-v532-toolbar">
+                  <button type="button" id="settings-add-rule-btn" class="btn btn-purple-primary btn-sm">Guardar regla</button>
+                  <button type="button" id="v532-cancel-edit" class="btn btn-outline btn-sm" hidden>Cancelar edición</button>
+                </div>
+              </div>
             </div>
 
             <!-- 2. Motor de IA y Preferencias -->
@@ -904,7 +919,7 @@
             <!-- 5. Información del Proyecto y Autor -->
             <div class="card settings-section-card about-app-card">
               <div class="about-app-inner">
-                <h4>DOMICILIO V5.3 · Asistente Inteligente de Reparto</h4>
+                <h4>DOMICILIO V5.3.2 · Asistente Inteligente de Reparto</h4>
                 <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
                 <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
               </div>
@@ -974,13 +989,14 @@
       crossorigin=""
     ></script>
     <script src="/static/route-optimizer.js"></script>
-    <script src="/static/app.js"></script>
-    <script src="/static/v3.js"></script>
+    <script src="/static/app.js?v=532"></script>
+    <script src="/static/v3.js?v=532"></script>
     <script src="/static/navigation.js?v=531"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script defer src="/static/bulk.js?v=5"></script>
-    <script defer src="/static/location-lookup.js?v=53"></script>
+    <script defer src="/static/location-lookup.js?v=532"></script>
     <script defer src="/static/v5.js?v=53"></script>
-    <script defer src="/static/v53.js?v=53"></script>
+    <script defer src="/static/v53.js?v=532"></script>
+    <script defer src="/static/rules-manager.js?v=532"></script>
   </body>
 </html>

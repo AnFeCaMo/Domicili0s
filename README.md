@@ -1,10 +1,16 @@
+# DOMICILIO V5.3.2
+
+**Versión actual: 5.3.2.** Repositorio: https://github.com/AnFeCaMo/Domicili0s
+
+**Novedades:** editor, selección y borrado masivo de reglas sin reinstalación automática; búsqueda de intersecciones Calle/Carrera sin asignar falsos domicilios. Lee [MEJORAS_V5_3_2.md](MEJORAS_V5_3_2.md), [INSTALAR_V5_3_2.md](INSTALAR_V5_3_2.md) y [PRUEBAS_V5_3_2.md](PRUEBAS_V5_3_2.md).
+
 # DOMICILIO V5.3.1
 
 **Actualización de navegación:** véase [MEJORAS_V5_3_1.md](MEJORAS_V5_3_1.md) y [INSTALAR_V5_3_1.md](INSTALAR_V5_3_1.md).
 
 # DOMICILIO V5.3 — Asistente de reparto
 
-**Versión:** 5.3.0  
+**Versión base previa:** 5.3.0  
 **Autor:** Ing. Andrés Camacho  
 **Plataforma:** FastAPI + JavaScript/HTML/CSS + Leaflet/OpenStreetMap; OSRM y Nominatim públicos opcionales para rutas/geocodificación.  
 **Objetivo:** un solo flujo de optimización para todos los pedidos de la jornada, sin requerir GPS por pedido y sin crear ubicaciones falsas.

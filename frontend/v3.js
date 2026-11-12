@@ -321,32 +321,8 @@
       }
     }
 
-    // 5.6 Reglas en Configuración
-    const settingsRules = $('settings-rules');
-    if (settingsRules) {
-      settingsRules.replaceChildren();
-      learnedRules.forEach((rule, idx) => {
-        const row = document.createElement('p');
-        const label=document.createElement('span');label.textContent=`• ${rule.text}`;row.appendChild(label);
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'btn btn-xs btn-danger-outline';
-        delBtn.textContent = 'Eliminar';
-        delBtn.onclick = () => {
-          if (!confirm('¿Eliminar esta regla?')) return;
-          learnedRules.splice(idx, 1);
-          saveState();
-          renderRules();
-          render();
-          showToast('Regla eliminada', 'info');
-        };
-        row.appendChild(delBtn);
-        settingsRules.append(row);
-      });
-      if (!learnedRules.length) {
-        settingsRules.innerHTML = '<p class="text-muted small">No hay recuerdos guardados aún.</p>';
-      }
-    }
+    // 5.6 V5.3.2: el gestor de reglas centralizado evita botones duplicados.
+    window.domicilioRulesManager?.render();
 
     // 5.7 Lugares Guardados
     const places = window.v3SavedPlaces || [];
@@ -614,20 +590,7 @@
 
   $('ai-to-settings-btn')?.addEventListener('click', () => navigate('settings'));
 
-  // Agregar regla manual
-  $('settings-add-rule-btn')?.addEventListener('click', () => {
-    const text = prompt('Escribe una regla o recordatorio para el repartidor:');
-    if (!text || !text.trim()) return;
-    learnedRules.push({
-      id: generatePedidoId(),
-      text: text.trim(),
-      createdAt: new Date().toISOString(),
-    });
-    saveState();
-    renderRules();
-    render();
-    showToast('Regla guardada', 'success');
-  });
+  // Reglas gestionadas por frontend/rules-manager.js (V5.3.2).
 
   // Configuración de destino
   const mode = $('destination-mode');

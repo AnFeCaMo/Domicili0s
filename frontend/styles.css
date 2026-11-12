@@ -3009,3 +3009,13 @@ input:focus, textarea:focus, select:focus {
 #nav-v4-address{font-size:.96rem;line-height:1.4;margin-top:3px;font-weight:600}
 #nav-v4-reference{font-size:.84rem;margin-top:4px;opacity:.85}
 @media(max-width:600px){.nav-v4-destination{padding:10px}.nav-v4-buttons button{min-height:43px;white-space:normal}}
+
+/* V5.3.2 - Gestión legible y adaptable de reglas */
+.rules-v532-tools,.rules-v532-editor{display:grid;gap:9px;margin:10px 0 16px}
+.rules-v532-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rules-v532-tools input,.rules-v532-editor textarea{width:100%;max-width:100%;padding:10px;border:1px solid var(--border,#bcc4d1);border-radius:8px;background:var(--card-bg,#fff);color:var(--text-primary,#222)}
+.rules-v532-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border,rgba(128,128,128,.22))}
+.rules-v532-row input[type=checkbox]{width:20px;height:20px;flex-shrink:0;cursor:pointer;margin-top:2px}
+.rules-v532-rule-text{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.92rem}
+.rules-v532-row .btn{flex-shrink:0}
+@media(max-width:560px){.rules-v532-row{flex-wrap:wrap}.rules-v532-row .rules-v532-rule-text{flex-basis:calc(100% - 40px)}.rules-v532-toolbar .btn{flex:1 1 45%;min-height:40px}}

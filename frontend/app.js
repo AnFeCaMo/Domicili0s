@@ -1687,4 +1687,6 @@ function installV4Rules(){
   for(const text of V4_RULES) if(!existing.has(text)) learnedRules.push({id:generatePedidoId(),text,createdAt:new Date().toISOString(),source:'v4-default'});
   saveState();renderRules();
 }
-installV4Rules();
+// V5.3.2: Las reglas antiguas son material histórico, NO se reinstalan al iniciar.
+// Respetar las eliminaciones y ediciones realizadas por el usuario.
+
