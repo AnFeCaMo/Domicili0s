@@ -87,6 +87,7 @@
     if(!window.isSecureContext){gpsIssue='La página necesita HTTPS para acceder al GPS';resolve(null);return;}
     if(!navigator.geolocation){gpsIssue='El navegador no ofrece el servicio de ubicación';resolve(null);return;}
     navigator.geolocation.getCurrentPosition(pos => {
+      if(window.domicilioMonitor?.ingestGps?.(pos,'optimizacion')===false){gpsIssue='Lectura GPS descartada por precisión o salto anómalo. Espera una posición confiable.';resolve(null);return;}
       gpsIssue='';lastFreshGps={coords:[pos.coords.latitude,pos.coords.longitude],accuracy:pos.coords.accuracy,time:Date.now()};resolve(lastFreshGps);
     },e=>{
       gpsIssue=e.code===1?'Permiso de ubicación denegado. Actívalo para este sitio en Chrome y en los ajustes del celular.':e.code===2?'El teléfono no pudo determinar la ubicación; activa Ubicación y prueba al aire libre.':'El GPS tardó demasiado en responder; prueba con la ubicación activada.';
@@ -200,6 +201,9 @@
           p.lat=hit.lat;p.lng=hit.lng;p.needsLocationReview=false;
           p.locationStatus=hit.needsConfirmation?'estimada':'localizada';
           p.locationSource=hit.source;p.locationDescription=hit.label;
+          p.locationEvidence=hit.display||'';
+          p.locationAccuracy=hit.accuracy||'desconocida';
+          p.locationCheckedAt=new Date().toISOString();
           if(hit.needsConfirmation)estimated++;else found++;
         }else{
           p.locationStatus='pendiente';p.locationIssue=hit.reason||'Ubicación no encontrada';
@@ -242,6 +246,7 @@
         pedidos.splice(0,pedidos.length,...finished,...proposed);
         proposed.filter(valid).forEach(p=>updatePedidoMarker(p));
         saveState();renderPedidoList();window.v3Refresh?.();
+        window.domicilioMonitor?.reviewAll?.();
         window.domicilioBulkV5?.clear();
         visual.replaceChildren(text('p','Tu lista está organizada. El mapa mostrará los puntos localizados; los restantes siguen pendientes de GPS.'));
         if(known.length){await calculateRoute();window.v3Navigate?.('map');}

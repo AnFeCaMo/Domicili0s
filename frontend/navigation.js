@@ -102,7 +102,12 @@
   }
   function freshGps() { return point && Date.now()-gpsTimestamp<20000 && gpsAccuracy<=120; }
   function updateGps(pos) {
-    point=[pos.coords.latitude,pos.coords.longitude]; gpsAccuracy=pos.coords.accuracy; gpsTimestamp=Date.now();
+    // No permitir que una lectura anómala mueva la posición del navegador.
+    if(window.domicilioMonitor?.ingestGps?.(pos,'navegacion')===false) {
+      status('Revisando precisión GPS');
+      return;
+    }
+    point=[pos.coords.latitude,pos.coords.longitude]; gpsAccuracy=pos.coords.accuracy; gpsTimestamp=Number(pos.timestamp)||Date.now();
     gpsPosition=point;
     if(!marker) marker=L.circleMarker(point,{radius:9,color:'#fff',weight:3,fillColor:'#1677ff',fillOpacity:1}).addTo(mapInstance).bindPopup('Mi ubicación GPS');
     else marker.setLatLng(point);

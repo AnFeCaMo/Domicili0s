@@ -1,6 +1,6 @@
-# DOMICILIO V5.3.2
+# DOMICILIO V5.3.3
 
-**Versión actual: 5.3.2.** Repositorio: https://github.com/AnFeCaMo/Domicili0s
+**Versión actual: 5.3.3.** Repositorio: https://github.com/AnFeCaMo/Domicili0s
 
 **Novedades:** editor, selección y borrado masivo de reglas sin reinstalación automática; búsqueda de intersecciones Calle/Carrera sin asignar falsos domicilios. Lee [MEJORAS_V5_3_2.md](MEJORAS_V5_3_2.md), [INSTALAR_V5_3_2.md](INSTALAR_V5_3_2.md) y [PRUEBAS_V5_3_2.md](PRUEBAS_V5_3_2.md).
 
@@ -62,3 +62,10 @@ Ver `PRUEBAS_V5_3.md`. Incluye pruebas JavaScript, Python/FastAPI y una prueba i
 `MEJORAS_V5_3.md` · `GUIA_USO_V5_3.md` · `INSTALAR_V5_3.md` · `PRUEBAS_V5_3.md` · `SEGURIDAD_LIMITACIONES_V5_3.md`.
 
 Los archivos `MEJORAS_V4.md`, `MEJORAS_V5.md`, `MEJORAS_V5_1.md` y `MEJORAS_V5_2.md` son antecedentes históricos y no sustituyen esta documentación.
+
+
+## Nuevo en V5.3.3
+
+El **Monitor inteligente** revisa pedidos, lecturas de GPS y la coherencia textual de direcciones de forma local mientras la app está abierta. Las anomalías se muestran en Inicio, Rutas y Configuración. Las lecturas claramente anómalas se descartan para evitar saltos de marcador. Las direcciones sin coordenadas permanecen en la lista. Configuración permite apagar el monitor. Consulta `MEJORAS_V5_3_3.md`, `INSTALAR_V5_3_3.md` y `PRUEBAS_V5_3_3.md`.
+
+**Privacidad:** no se envía la ubicación del teléfono a un servicio remoto de monitoreo. El despliegue en Render sirve la aplicación, pero no activa seguimiento cuando el navegador está cerrado.

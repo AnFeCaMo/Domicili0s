@@ -21,6 +21,8 @@ const returnToStartInput = document.getElementById('return-to-start');
 const pedidos = [];
 const learnedRules = [];
 const knownAddresses = [];
+// Interfaz de lectura para el monitor: no expone operaciones de escritura.
+window.domicilioMonitorData=()=>({orders:pedidos,rules:learnedRules,knownAddresses});
 let gpsPosition = null;
 let gpsWatchId = null;
 let isSelectingPedidoPoint = false;
@@ -493,6 +495,8 @@ function saveState() {
 
   try {
     localStorage.setItem('domicilios-cienaga-state', JSON.stringify(state));
+    // V5.3.3: actualizar alertas inmediatamente después de cualquier cambio de pedidos o reglas.
+    window.domicilioMonitor?.reviewAll?.();
   } catch (error) {
     console.error('No se pudo guardar el estado local.', error);
     showAddressFeedback('No se pudieron guardar los cambios en este navegador.', true);
@@ -1264,6 +1268,7 @@ async function importBackup(e) {
 }
 
 function gpsUpdate(position) {
+  if (window.domicilioMonitor?.ingestGps?.(position,'gps-general')===false) return;
   gpsPosition = [position.coords.latitude, position.coords.longitude];
   const gpsStatus = document.getElementById('gps-status');
   if (gpsStatus) {

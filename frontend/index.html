@@ -5,7 +5,7 @@
     <meta name="theme-color" content="#6D28D9" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>DOMICILIO V5.3.2 · Asistente Inteligente de Reparto</title>
+    <title>DOMICILIO V5.3.3 · Asistente Inteligente de Reparto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V5.3.2</span>
+            <span class="brand-title">DOMICILIO V5.3.3</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -289,6 +289,8 @@
               <div id="home-embedded-map" class="embedded-leaflet-map" aria-label="Mapa de entregas"></div>
             </div>
           </div>
+
+          <p id="monitor-v533-home-alert" class="monitor-v533-route-alert" role="status" aria-live="polite">Monitor: revisando precisión y direcciones…</p>
 
           <!-- 4. Acciones Rápidas (Tarjeta Inferior con 5 Botones Grandes) -->
           <div class="quick-actions-bar-card">
@@ -553,7 +555,7 @@
         <section id="routes-view" class="v3-view-screen hidden">
           <div class="screen-page-header">
             <div>
-              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.3.2</h2>
+              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.3.3</h2>
               <p class="screen-page-subtitle">Tu ubicación GPS actual será el origen. No hay regreso automático.</p>
             </div>
           </div>
@@ -620,6 +622,7 @@
                 <button id="v5-optimize-all" type="button" class="btn btn-purple-primary btn-lg">🧭 Optimizar toda mi ruta</button>
               </div>
               <p class="v5-helper" id="v5-plan-status" role="status" aria-live="polite">Puedes pegar direcciones nuevas o usar los pedidos que ya guardaste.</p>
+              <p id="monitor-v533-route-alert" class="monitor-v533-route-alert" role="status" aria-live="polite">Monitor: comprobando pedidos…</p>
               <details class="v5-details"><summary>Editar una dirección o cambiar el orden manualmente</summary>
                 <p>Opciones adicionales por si necesitas corregir un pedido o cambiar su posición.</p>
                 <button id="review-current-orders" type="button" class="btn btn-outline btn-sm">Corregir direcciones</button>
@@ -833,6 +836,16 @@
             <div class="v53-ask-row"><input id="v53-question" type="text" placeholder="Ej.: ¿Por qué mi dirección está sin GPS?"/><button id="v53-ask" type="button" class="btn btn-purple-primary">Preguntar</button></div>
             <p id="v53-answer" role="status" aria-live="polite"></p>
           </div>
+          <section id="monitor-v533-panel" class="card monitor-v533" aria-label="Monitor inteligente de pedidos">
+            <div class="monitor-v533-head">
+              <div><h3>🛰 Monitor inteligente de la jornada</h3><p class="small text-secondary">Vigila pedidos, coherencia de direcciones y precisión GPS mientras la aplicación esté abierta.</p></div>
+              <label class="monitor-v533-toggle"><input type="checkbox" id="monitor-v533-enabled" checked> Activado</label>
+            </div>
+            <p id="monitor-v533-status" role="status" aria-live="polite">Preparando supervisión…</p>
+            <p id="monitor-v533-summary" class="small text-secondary"></p>
+            <ul id="monitor-v533-alerts" class="monitor-v533-alerts" aria-live="polite"></ul>
+            <p class="small text-secondary">No es una IA generativa ni un GPS remoto en segundo plano: no funciona con la página cerrada. No modifica pedidos ni confirma viviendas automáticamente.</p>
+          </section>
           <div class="settings-sections-grid">
             <!-- 1. Memoria y Reglas -->
             <div class="card settings-section-card">
@@ -919,7 +932,7 @@
             <!-- 5. Información del Proyecto y Autor -->
             <div class="card settings-section-card about-app-card">
               <div class="about-app-inner">
-                <h4>DOMICILIO V5.3.2 · Asistente Inteligente de Reparto</h4>
+                <h4>DOMICILIO V5.3.3 · Asistente Inteligente de Reparto</h4>
                 <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
                 <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
               </div>
@@ -989,14 +1002,15 @@
       crossorigin=""
     ></script>
     <script src="/static/route-optimizer.js"></script>
-    <script src="/static/app.js?v=532"></script>
-    <script src="/static/v3.js?v=532"></script>
-    <script src="/static/navigation.js?v=531"></script>
+    <script src="/static/app.js?v=533"></script>
+    <script src="/static/v3.js?v=533"></script>
+    <script src="/static/navigation.js?v=533"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script defer src="/static/bulk.js?v=5"></script>
-    <script defer src="/static/location-lookup.js?v=532"></script>
-    <script defer src="/static/v5.js?v=53"></script>
-    <script defer src="/static/v53.js?v=532"></script>
-    <script defer src="/static/rules-manager.js?v=532"></script>
+    <script defer src="/static/location-lookup.js?v=533"></script>
+    <script defer src="/static/v5.js?v=533"></script>
+    <script defer src="/static/v53.js?v=533"></script>
+    <script defer src="/static/rules-manager.js?v=533"></script>
+    <script defer src="/static/monitor-v533.js?v=533"></script>
   </body>
 </html>
