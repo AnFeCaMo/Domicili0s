@@ -98,12 +98,12 @@
   function currentOrigin(gps){
     if(gps && gps.accuracy<=100) return {point:gps.coords,label:'Tu GPS actual'};
     if(Array.isArray(lastConfirmed?.coords) && lastConfirmed.coords.length===2 && lastConfirmed.coords.every(Number.isFinite))return {point:lastConfirmed.coords,label:'Último domicilio confirmado (origen aproximado; no es tu GPS actual)'};
-    return {point:[...startLocation],label:'Punto de salida configurado; GPS actual no disponible'};
+    return {point:null,label:'GPS no disponible: solo orden provisional, sin origen inventado'};
   }
   function routeOrigin(){
     if(lastFreshGps && Date.now()-lastFreshGps.time<25000 && lastFreshGps.accuracy<=100)return lastFreshGps.coords;
     if(lastConfirmed?.coords?.length===2 && lastConfirmed.coords.every(Number.isFinite))return lastConfirmed.coords;
-    return [...startLocation];
+    return null;
   }
   function recordDeliveredOrigin(coords, accuracy){
     if(!Array.isArray(coords) || coords.length!==2 || !coords.every(Number.isFinite) || accuracy>50)return false;
@@ -207,12 +207,12 @@
         }
       }
       const known=entries.filter(valid),missing=entries.filter(x=>!valid(x));
-      const destination=window.v3Destination?.point || ((window.v3Destination?.mode==='start'||$('return-to-start')?.checked)?startLocation:null);
+      const destination=null; // Sin retorno obligatorio ni base.
       const lockedId=window.domicilioNav?.currentTargetId?.()||null;
       let result={order:[],minutes:null},warning='';
       if(known.length){
         notice(`Organizando ${known.length} ubicaciones por calles. ${missing.length} dirección(es) quedarán en la lista sin GPS.`);
-        try{result=await calculateKnown(known,from.point,destination,lockedId);if(result.approx)warning='Lista grande: orden aproximado por proximidad GPS; no equivale a tiempos por calles.';}catch(e){warning=e.message;result.order=approximateOrder(known);}
+        try{result=from.point?await calculateKnown(known,from.point,destination,lockedId):{order:approximateOrder(known),minutes:null};if(result.approx)warning='Lista grande: orden aproximado por proximidad GPS; no equivale a tiempos por calles.';}catch(e){warning=e.message;result.order=approximateOrder(known);}
       }
       // Las ubicaciones pendientes se intercalan por nomenclatura, con aviso explícito.
       // Sin GPS no se pueden comparar distancias exactas entre conocidos y desconocidos.

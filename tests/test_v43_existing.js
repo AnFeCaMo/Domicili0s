@@ -8,7 +8,7 @@ assert.match(app,/p\.needsLocationReview=true/);
 assert.match(app,/window\.domicilioSuggestAfterDelivery=/);
 assert.match(app,/window\.domicilioRouteOptimizer\.withPriority/);
 assert.match(app,/getRoutePedidos\(\)\.map\(p=>/);
-assert.match(nav,/window\.domicilioSuggestAfterDelivery\?\.\(\)/);
+assert.match(nav,/window\.domicilioV53\?\.advanceAfterDelivery\?\.\(\)/);
 assert.match(html,/id="review-current-orders"/);
 assert.match(html,/id="manual-route-order"/);
 console.log('V4.3: UI de pedidos anteriores y reoptimización protegida: OK');

@@ -91,7 +91,7 @@
     gpsPosition=point;
     if(!marker) marker=L.circleMarker(point,{radius:9,color:'#fff',weight:3,fillColor:'#1677ff',fillOpacity:1}).addTo(mapInstance).bindPopup('Mi ubicación GPS');
     else marker.setLatLng(point);
-    if(!target) return;
+    if(!target || !target.coords) return;
     if(!route && !calculating && freshGps() && navigator.onLine) calculate();
     const remaining=distance(point,target.coords);
     $('nav-v4-details').textContent=`Distancia directa: ${Math.round(remaining)} m · Precisión GPS: ±${Math.round(gpsAccuracy)} m${navigator.onLine?'':' · Sin conexión'}`;
@@ -125,7 +125,7 @@
     return `${direction[modifier]|| (m.type==='continue'?'continúa derecho':'continúa por la vía')}${road}`;
   }
   async function calculate() {
-    if(calculating || !target) return;
+    if(calculating || !target || !target.coords) return;
     if(!freshGps()) {message('Esperando ubicación GPS precisa. Activa la ubicación del teléfono.',true);return;}
     if(!navigator.onLine) {
       status('Sin conexión');
@@ -166,22 +166,30 @@
   }
   function start(pedido) {
     if(pedido?.locationStatus==='estimada' && !confirm('La ubicación encontrada es aproximada, corresponde a la CALLE y no necesariamente a esta casa. ¿Quieres ver un recorrido orientativo y confirmar el domicilio al llegar?'))return;
-    if(!pedido || pedido.needsLocationReview || pedido.lat == null || pedido.lng == null || !Number.isFinite(Number(pedido.lat)) || !Number.isFinite(Number(pedido.lng))) {showToast('Este pedido no tiene coordenadas válidas','danger');return;}
+    if(!pedido)return;
+    if(pedido.needsLocationReview || pedido.lat == null || pedido.lng == null || !Number.isFinite(Number(pedido.lat)) || !Number.isFinite(Number(pedido.lng))) {
+      stop();target={id:pedido.id,number:pedido.number,coords:null};panel.hidden=false;
+      window.v3Navigate?.('map');status('Ubicación no localizada');
+      message(`Pedido #${pedido.number}: ${pedido.name||'Cliente'}. Dirección: ${pedido.address||'sin dirección'}${pedido.reference?' · Referencia: '+pedido.reference:''}. Confirma la ubicación al llegar.`);
+      $('nav-v53-capture')?.removeAttribute('hidden');return;
+    }
     // No reutilizar instrucciones o geometría del pedido anterior.
     routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;lastVoice='';resetVoiceGuidance();
     removeLayer(line);line=null;removeArrows(arrows);
+    $('nav-v53-capture')?.setAttribute('hidden','');
     destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)],approximate:pedido.locationStatus==='estimada'};
     panel.hidden=false; window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
     beginGps(); if(freshGps()) calculate();
     else navigator.geolocation?.getCurrentPosition(pos=>{updateGps(pos);calculate();},()=>{}, {enableHighAccuracy:true,timeout:15000});
   }
   function back() {
-    if(!startLocation?.every(Number.isFinite)) {message('Configura primero el punto de salida.');return;}
+    message('No se configura un regreso automático. Agrega un destino nuevo si lo necesitas.');return;
+    if(!startLocation?.every(Number.isFinite)) return;
     routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;removeLayer(line);line=null;removeArrows(arrows);
     destinationIsBase=true; target={id:null,coords:[...startLocation]}; arrived=false;resetVoiceGuidance();
     panel.hidden=false; window.v3Navigate?.('map'); beginGps(); calculate();
   }
-  function stop() {resetVoiceGuidance();routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
+  function stop() {$('nav-v53-capture')?.setAttribute('hidden','');resetVoiceGuidance();routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
   function deliver() {
     if(!target?.id) {message('Estás navegando al punto de salida, no a un pedido.');return;}
     const currentId=target.id;
@@ -189,34 +197,21 @@
     if(!confirm(`¿Confirmas que entregaste el pedido #${p.number}?`))return;
     p.status='entregado';p.deliveredAt=new Date().toISOString();
     if(freshGps() && gpsAccuracy<=50)window.domicilioV5?.recordDeliveredOrigin?.([...point],gpsAccuracy);
-    updatePedidoMarker(p);saveState();renderPedidoList();window.v3Refresh?.();
+    updatePedidoMarker(p);window.domicilioV53?.onDelivered?.(p);saveState();renderPedidoList();window.v3Refresh?.();
     // La lista de pedidos conserva el orden manual/optimizado aprobado por el usuario.
     const pending=getRoutePedidos();
     const next=pending[0];
-    if(autoNextCheckbox.checked && next) {
-      // No elegir silenciosamente otra parada cuando la siguiente carece de coordenadas.
-      if(next.locationStatus==='estimada') {
-        stop();window.domicilioSuggestAfterDelivery?.();showToast(`Entrega registrada. El pedido #${next.number} tiene ubicación aproximada; confirma antes de navegar.`, 'info', 6000);return;
-      }
-      if(next.lat == null || next.lng == null || !Number.isFinite(Number(next.lat)) || !Number.isFinite(Number(next.lng))) {
-        stop();window.domicilioSuggestAfterDelivery?.();showToast(`Entrega registrada. El pedido #${next.number} requiere verificar su ubicación.`, 'info', 6000);return;
-      }
-      stop();start(next);
-      window.domicilioSuggestAfterDelivery?.();
-      showToast(`Entrega #${p.number} completada. Navegando al pedido #${next.number}.`, 'success', 5000);
-      return;
-    }
     stop();
-    if(next)window.domicilioSuggestAfterDelivery?.();
-    if(!next) {
-      showToast('¡Todas las entregas están completadas! Puedes regresar a base.', 'success', 6000);
-    } else {
-      showToast('Entrega registrada. Selecciona el siguiente pedido.', 'success');
-    }
+    if(next) {
+      // Siempre el siguiente del orden aprobado, incluso sin coordenadas.
+      window.domicilioV53?.advanceAfterDelivery?.();
+      if(!autoNextCheckbox.checked) showToast(`Entregado. El siguiente es #${next.number}: ${next.address||'dirección pendiente'}`, 'success', 5500);
+    } else showToast('Jornada sin pedidos pendientes. Finalízala cuando decidas.', 'success', 5500);
   }
   $('nav-v4-lost').addEventListener('click',()=>{if(!target)return;lastReroute=Date.now();message('Buscando un nuevo recorrido desde tu ubicación.',true);calculate();});
   $('nav-v4-repeat').addEventListener('click',()=>announce($('nav-v4-instruction').textContent,true));
-  $('nav-v4-return').addEventListener('click',back);
+  $('nav-v4-return')?.addEventListener('click',back);
+  $('nav-v53-capture')?.addEventListener('click',()=>{const p=pedidos.find(p=>p.id===target?.id);if(p)window.domicilioV5?.captureAtOrder?.(p);});
   $('nav-v4-stop').addEventListener('click',stop);
   $('nav-v4-arrived').addEventListener('click',deliver);
   window.addEventListener('offline',()=>{if(target){status('Sin conexión');message('Conexión perdida. Mantengo la ruta visible; no puedo recalcular.',true);}});

@@ -119,11 +119,11 @@
             <i data-lucide="route"></i>
             <span class="sidebar-label">Rutas</span>
           </button>
-          <button type="button" class="sidebar-item" data-nav="map">
+          <button type="button" class="sidebar-item v53-hidden-nav" data-nav="map">
             <i data-lucide="map"></i>
             <span class="sidebar-label">Mapa</span>
           </button>
-          <button type="button" class="sidebar-item" data-nav="ai">
+          <button type="button" class="sidebar-item v53-hidden-nav" data-nav="ai">
             <i data-lucide="brain"></i>
             <span class="sidebar-label">Cerebro IA</span>
           </button>
@@ -131,11 +131,11 @@
             <i data-lucide="clock"></i>
             <span class="sidebar-label">Historial</span>
           </button>
-          <button type="button" class="sidebar-item" data-nav="stats">
+          <button type="button" class="sidebar-item v53-hidden-nav" data-nav="stats">
             <i data-lucide="bar-chart-3"></i>
             <span class="sidebar-label">Estadísticas</span>
           </button>
-          <button type="button" class="sidebar-item" data-nav="settings">
+          <button type="button" class="sidebar-item v53-hidden-nav" data-nav="settings">
             <i data-lucide="sliders-horizontal"></i>
             <span class="sidebar-label">Configuración</span>
           </button>
@@ -553,8 +553,8 @@
         <section id="routes-view" class="v3-view-screen hidden">
           <div class="screen-page-header">
             <div>
-              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V4.3</h2>
-              <p class="screen-page-subtitle">Configura origen, optimiza la ruta y define tu regreso</p>
+              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.3</h2>
+              <p class="screen-page-subtitle">Tu ubicación GPS actual será el origen. No hay regreso automático.</p>
             </div>
           </div>
 
@@ -740,7 +740,7 @@
         <section id="history-view" class="v3-view-screen hidden">
           <div class="screen-page-header">
             <div>
-              <h2 class="screen-page-title">Historial de Jornada</h2>
+              <h2 class="screen-page-title">Historial de entregas</h2>
               <p class="screen-page-subtitle">Registro cronológico de entregas, cambios de orden y acciones</p>
             </div>
             <div class="screen-header-actions">
@@ -751,11 +751,10 @@
             </div>
           </div>
 
-          <div class="card history-card">
-            <div id="audit-list" class="audit-history-timeline">
-              <!-- Renderizado dinámicamente con v3.js -->
-            </div>
-          </div>
+          <div id="v53-history" class="v53-history" aria-live="polite"></div>
+          <details class="v53-audit"><summary>Registro técnico de acciones</summary><div class="card history-card">
+            <div id="audit-list" class="audit-history-timeline"></div>
+          </div></details>
         </section>
 
         <!-- PANTALLA 7: ESTADÍSTICAS Y RENDIMIENTO -->
@@ -827,6 +826,13 @@
             </div>
           </div>
 
+          <div class="card v53-settings-assistant">
+            <h3>Asistente de la aplicación</h3>
+            <p class="small text-secondary">Pregúntame sobre pedidos, ubicaciones, GPS, rutas y opciones. Asistente local de ayuda, no un modelo generativo.</p>
+            <label for="v53-question">Tu pregunta</label>
+            <div class="v53-ask-row"><input id="v53-question" type="text" placeholder="Ej.: ¿Por qué mi dirección está sin GPS?"/><button id="v53-ask" type="button" class="btn btn-purple-primary">Preguntar</button></div>
+            <p id="v53-answer" role="status" aria-live="polite"></p>
+          </div>
           <div class="settings-sections-grid">
             <!-- 1. Memoria y Reglas -->
             <div class="card settings-section-card">
@@ -874,7 +880,7 @@
             <!-- 3. Direcciones y Lugares Guardados -->
             <div class="card settings-section-card">
               <h3 class="panel-card-title"><i data-lucide="bookmark" class="text-orange"></i> Lugares Frecuentes Guardados</h3>
-              <p class="text-secondary small">Destinos preconfigurados para retorno de jornada (Casa, Base, etc.).</p>
+              <p class="text-secondary small">Direcciones conocidas que puedes consultar para futuras entregas.</p>
               <div id="saved-places-list" class="saved-places-chips"></div>
             </div>
 
@@ -898,7 +904,7 @@
             <!-- 5. Información del Proyecto y Autor -->
             <div class="card settings-section-card about-app-card">
               <div class="about-app-inner">
-                <h4>DOMICILIO V4 · Asistente Inteligente de Reparto</h4>
+                <h4>DOMICILIO V5.3 · Asistente Inteligente de Reparto</h4>
                 <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
                 <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
               </div>
@@ -928,11 +934,11 @@
         <i data-lucide="route"></i>
         <span>Rutas</span>
       </button>
-      <button type="button" class="mobile-nav-btn" data-nav="ai">
+      <button type="button" class="mobile-nav-btn" data-nav="history">
         <i data-lucide="brain"></i>
-        <span>Cerebro IA</span>
+        <span>Historial</span>
       </button>
-      <button type="button" class="mobile-nav-btn" data-nav="map">
+      <button type="button" class="mobile-nav-btn v53-hidden-nav" data-nav="map">
         <i data-lucide="map"></i>
         <span>Mapa</span>
       </button>
@@ -946,7 +952,8 @@
       <div class="nav-v4-buttons">
         <button type="button" id="nav-v4-lost">↻ Estoy perdido</button>
         <button type="button" id="nav-v4-repeat">🔊 Repetir</button>
-        <button type="button" id="nav-v4-return">↩ Regresar a base</button>
+        <button type="button" id="nav-v4-return" hidden>Regresar a base</button>
+        <button type="button" id="nav-v53-capture" hidden>📍 Estoy en esta dirección</button>
         <button type="button" id="nav-v4-arrived">✓ Entregado</button>
         <button type="button" id="nav-v4-stop">■ Detener</button>
       </div>
@@ -966,7 +973,8 @@
     <script src="/static/navigation.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script defer src="/static/bulk.js?v=5"></script>
-    <script defer src="/static/location-lookup.js?v=52"></script>
-    <script defer src="/static/v5.js?v=52"></script>
+    <script defer src="/static/location-lookup.js?v=53"></script>
+    <script defer src="/static/v5.js?v=53"></script>
+    <script defer src="/static/v53.js?v=53"></script>
   </body>
 </html>

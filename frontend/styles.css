@@ -2987,3 +2987,17 @@ input:focus, textarea:focus, select:focus {
   .brand-version-pill {display:none;}
   .app-top-header {gap:3px!important;}
 }
+
+/* DOMICILIO V5.3: cuatro apartados, consulta de mapas, panel de historial. */
+.v53-hidden-nav, #nav-v4-return, #home-quick-return, #return-to-start, #start-address, #search-start-button, #set-start-on-map-button, #start-location-display, #map-center-start {display:none!important}
+#return-to-start:has(+label), label:has(#return-to-start), #routes-view .route-panel-card:has(#start-address),#routes-view .route-panel-card:has(#destination-mode){display:none!important}
+.v53-history{display:grid;gap:12px;margin-bottom:18px}
+.v53-day{border:1px solid var(--border-color,#d4d9e4);border-radius:14px;padding:15px;background:var(--card-bg,#fff)}
+.v53-day summary{cursor:pointer;font-weight:700;line-height:1.5}
+.v53-day li{padding:6px 0;border-bottom:1px solid #ddd;font-size:.93rem;overflow-wrap:anywhere}
+.v53-ask-row{display:flex;gap:8px;flex-wrap:wrap}.v53-ask-row input{flex:1;min-width:160px;padding:10px;border-radius:8px;border:1px solid #a9a9b7}
+#v53-answer{min-height:25px;white-space:pre-wrap}.v53-audit{margin-top:16px}
+@media(max-width:767px){.bottom-mobile-nav{display:flex;justify-content:space-around}.bottom-mobile-nav .mobile-nav-btn{flex:1;min-width:0}.v53-day{padding:12px}.v53-ask-row button{min-width:100px}}
+
+/* El asistente solo vive en Configuración; no ocupa espacio en Inicio. */
+.ai-home-widget-card{display:none!important}

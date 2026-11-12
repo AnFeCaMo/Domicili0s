@@ -69,7 +69,7 @@ function formatPedidoText(pedido) {
 }
 
 function getRoutePedidos() {
-  return pedidos.filter((pedido) => pedido.status !== 'entregado' && pedido.status !== 'fallido');
+  return pedidos.filter((pedido) => !['entregado', 'fallido'].includes(pedido.status));
 }
 
 function movePedido(pedidoId, direction) {
@@ -214,6 +214,7 @@ function renderPedidoList() {
     viewMapBtn.innerHTML = '<span>📍 Ver en Mapa</span>';
     viewMapBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if(!Number.isFinite(pedido.lat)||!Number.isFinite(pedido.lng)){showToast('La dirección no está localizada. Puedes guardarla con GPS al llegar.','warning');return;}
       window.v3Navigate?.('map');
       setTimeout(() => {
         const marker = pedidoMarkers.get(pedido.id);
@@ -297,8 +298,8 @@ function renderPedidoList() {
         entregado: `Entregado ${pedido.deliveredAt ? `(${new Date(pedido.deliveredAt).toLocaleTimeString('es-CO')})` : ''}`,
         fallido: `Fallido ${pedido.failedReason ? `— Motivo: ${pedido.failedReason}` : ''}`
       };
-      const distFromStart = haversineDistance(startLocation, [pedido.lat, pedido.lng]).toFixed(2);
-      const distFromGps = gpsPosition ? haversineDistance(gpsPosition, [pedido.lat, pedido.lng]).toFixed(2) : null;
+      const located=Number.isFinite(pedido.lat)&&Number.isFinite(pedido.lng);
+      const distFromGps = located && gpsPosition ? haversineDistance(gpsPosition, [pedido.lat, pedido.lng]).toFixed(2) : null;
 
       const detailsInfo = [
         `📦 PEDIDO #${pedido.number}`,
@@ -306,8 +307,7 @@ function renderPedidoList() {
         `Dirección: ${pedido.address || 'Ubicación seleccionada en mapa'}`,
         pedido.reference ? `Referencia: ${pedido.reference}` : null,
         `Estado: ${statusMap[pedido.status] || pedido.status}`,
-        `Coordenadas: ${formatCoordinates([pedido.lat, pedido.lng])}`,
-        `Distancia desde base: ${distFromStart} km`,
+        located ? `Coordenadas: ${formatCoordinates([pedido.lat, pedido.lng])}` : 'Ubicación no localizada',
         distFromGps ? `Distancia desde tu posición actual: ${distFromGps} km` : null
       ].filter(Boolean).join('\n');
 
@@ -327,12 +327,14 @@ function renderPedidoList() {
       window.v3Audit ||= [];
       window.v3Audit.push({ at: new Date().toISOString(), action: 'Entrega completada', details: `Pedido #${pedido.number} (${pedido.name || 'Sin nombre'})` });
       updatePedidoMarker(pedido);
+      window.domicilioV53?.onDelivered?.(pedido);
       saveState();
       renderPedidoList();
       window.v3Refresh?.();
       recalculateIfRouteVisible();
       showToast(`¡Pedido #${pedido.number} completado! 🎉`, 'success');
-      window.domicilioSuggestAfterDelivery?.();
+      if(window.domicilioNav?.currentTargetId?.()===pedido.id)window.domicilioNav.stop();
+      window.domicilioV53?.advanceAfterDelivery?.();
     });
 
     // 5. Registrar Entrega Fallida
@@ -344,6 +346,7 @@ function renderPedidoList() {
       e.stopPropagation();
       const reason = prompt('Motivo de la entrega fallida (ej: Cliente no contesta, dirección incorrecta):', 'Cliente no se encontraba');
       if (reason === null) return;
+      pedido.failedAt = new Date().toISOString();
       pedido.status = 'fallido';
       pedido.failedReason = reason.trim();
       window.v3Audit ||= [];
@@ -353,6 +356,8 @@ function renderPedidoList() {
       renderPedidoList();
       window.v3Refresh?.();
       recalculateIfRouteVisible();
+      if(window.domicilioNav?.currentTargetId?.()===pedido.id)window.domicilioNav.stop();
+      window.domicilioV53?.advanceAfterDelivery?.();
       showToast(`Pedido #${pedido.number} marcado como fallido`, 'warning');
     });
 
@@ -360,29 +365,17 @@ function renderPedidoList() {
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'btn btn-danger-outline btn-sm';
-    deleteBtn.innerHTML = '<span>🗑 Eliminar</span>';
+    deleteBtn.innerHTML = '<span>🗑 Anular</span>';
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!confirm(`¿Eliminar definitivamente el pedido #${pedido.number}?`)) return;
-      const index = pedidos.findIndex((itemPedido) => itemPedido.id === pedido.id);
-      if (index >= 0) {
-        window.v3Audit ||= [];
-        window.v3Audit.push({ at: new Date().toISOString(), action: 'Eliminar pedido', details: `Pedido #${pedido.number}` });
-        pedidos.splice(index, 1);
-        const marker = pedidoMarkers.get(pedido.id);
-        if (marker) {
-          mapInstance.removeLayer(marker);
-          pedidoMarkers.delete(pedido.id);
-        }
-        if (editingPedidoId === pedido.id) {
-          resetPedidoForm();
-        }
-        renderPedidoList();
-        saveState();
-        window.v3Refresh?.();
-        recalculateIfRouteVisible();
-        showToast(`Pedido #${pedido.number} eliminado`, 'info');
-      }
+      if (!confirm(`¿Anular el pedido #${pedido.number}? Permanecerá registrado para el historial de la jornada.`)) return;
+      pedido.status='fallido'; pedido.failedReason='Pedido anulado'; pedido.failedAt=new Date().toISOString();
+      window.v3Audit ||= [];
+      window.v3Audit.push({at:new Date().toISOString(),action:'Anular pedido',details:`Pedido #${pedido.number}`});
+      saveState(); renderPedidoList(); window.v3Refresh?.(); recalculateIfRouteVisible();
+      if(window.domicilioNav?.currentTargetId?.()===pedido.id)window.domicilioNav.stop();
+      window.domicilioV53?.advanceAfterDelivery?.();
+      showToast(`Pedido #${pedido.number} anulado y conservado para el historial`, 'info');
     });
 
     buttonsGrid.append(viewMapBtn, editBtn, changeLocBtn, detailsBtn, markDoneBtn, markFailedBtn, deleteBtn);
@@ -491,7 +484,8 @@ function saveState() {
     knownAddresses,
     orders: pedidos,
     startLocation,
-    returnToStart: returnToStartInput.checked,
+    returnToStart: false,
+    shifts: window.domicilioV53?.readHistory?.() || [],
     savedPlaces: window.v3SavedPlaces || [],
     destination: window.v3Destination || { mode: 'none' },
     audit: window.v3Audit || [],
@@ -536,7 +530,8 @@ function loadSavedState() {
     });
     pedidos.push(...restoredOrders);
     window.v3SavedPlaces = Array.isArray(state.savedPlaces) ? state.savedPlaces.slice(0, 100) : [];
-    window.v3Destination = state.destination || { mode: state.returnToStart ? 'start' : 'none' };
+    window.v3Destination = { mode: 'none' };
+    if(Array.isArray(state.shifts)) window.domicilioV53?.restoreHistory?.(state.shifts);
     window.v3Audit = Array.isArray(state.audit) ? state.audit.slice(-500) : [];
     if (Array.isArray(state.rules)) learnedRules.push(...state.rules.filter(r => r && typeof r.text === 'string').slice(0, 200));
     if (Array.isArray(state.knownAddresses)) knownAddresses.push(...state.knownAddresses.filter(a => a && typeof a.address === 'string' && Number.isFinite(a.lat) && Number.isFinite(a.lng)).slice(0, 2000));
@@ -548,7 +543,7 @@ function loadSavedState() {
     ) {
       startLocation = state.startLocation.map(Number);
     }
-    returnToStartInput.checked = Boolean(state.returnToStart);
+    returnToStartInput.checked = false;
   } catch (error) {
     console.error('No se pudieron restaurar los datos guardados.', error);
     try {
@@ -665,7 +660,8 @@ function showPedidoForm(location) {
   const nextNumber = Math.max(0, ...pedidos.map((p) => Number(p.number) || 0)) + 1;
   pedidoNumberInput.value = nextNumber;
   document.getElementById('form-title').textContent = 'Registrar Nuevo Pedido';
-  updateSelectedLocation(location);
+  if(Array.isArray(location) && location.every(Number.isFinite)) updateSelectedLocation(location);
+  else {selectedLocation=null;selectedCoordinates.textContent='Dirección sin GPS: puedes guardar el pedido y localizarlo después.';}
   clearAddressFeedback();
   pedidoFormWrapper.classList.remove('hidden');
   window.v3Navigate?.('orders');
@@ -725,8 +721,9 @@ async function calculateRoute() {
   calculateRouteButton.disabled = true;
   showToast('Dibujando tu recorrido por calles...', 'info');
 
-  const origin = window.domicilioV5?.routeOrigin?.() || startLocation;
-  const finalPoint = window.v3Destination?.point || ((window.v3Destination?.mode === 'start' || returnToStartInput.checked) ? startLocation : null);
+  const origin = window.domicilioV5?.routeOrigin?.();
+  if (!origin) { showToast('Activa tu GPS para trazar desde tu ubicación actual.', 'warning'); calculateRouteButton.disabled=false; return; }
+  const finalPoint = null; // V5.3: no añadir regresos ni bases automáticamente.
   const known = activePedidos.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !p.needsLocationReview);
   if (!known.length) { clearRoute(); calculateRouteButton.disabled=false; routeSummary.textContent = 'Todos los pedidos siguen en tu lista. Falta ubicar alguno para dibujar una ruta GPS real.'; return; }
   const routePoints = [origin, ...known.map(p => [p.lat, p.lng]), ...(finalPoint ? [finalPoint] : [])];
@@ -817,10 +814,9 @@ async function geocodeAddress() {
 function handlePedidoSubmit(event) {
   event.preventDefault();
 
-  if (!selectedLocation) {
-    showAddressFeedback('Debes seleccionar un punto en el mapa o buscar la dirección.', true);
-    return;
-  }
+  // V5.3: nombre, dirección y referencia se pueden editar sin GPS.
+  // Si cambió el texto, no reutilizar coordenadas de otra vivienda.
+  const hasSelectedPoint = Array.isArray(selectedLocation) && selectedLocation.every(Number.isFinite);
 
   const numberValue = Number(pedidoNumberInput.value);
   if (!Number.isInteger(numberValue) || numberValue < 1) {
@@ -833,7 +829,7 @@ function handlePedidoSubmit(event) {
   pedidoAddressInput.value = address;
   const reference = document.getElementById('pedido-reference').value.trim();
 
-  if (address) {
+  if (address && hasSelectedPoint && (!editingPedidoId || !pedidos.some(p=>p.id===editingPedidoId && p.address!==address && p.lat===selectedLocation[0] && p.lng===selectedLocation[1]))) {
     const existingIndex = knownAddresses.findIndex((item) => item.address.toLowerCase() === address.toLowerCase());
     if (existingIndex >= 0) {
       knownAddresses[existingIndex] = { address, lat: selectedLocation[0], lng: selectedLocation[1] };
@@ -851,11 +847,12 @@ function handlePedidoSubmit(event) {
       pedido.name = name;
       pedido.address = address;
       pedido.reference = reference;
-      pedido.lat = selectedLocation[0];
-      pedido.lng = selectedLocation[1];
-      // No dar una ubicación por validada solo porque se editó su texto.
-      pedido.needsLocationReview = (previousLat===selectedLocation[0] && previousLng===selectedLocation[1])
-        ? (Boolean(pedido.needsLocationReview) || previousAddress!==address) : false;
+      const unchangedCoordinates=hasSelectedPoint && previousLat===selectedLocation[0] && previousLng===selectedLocation[1];
+      const addressMovedWithoutNewLocation=previousAddress!==address && unchangedCoordinates;
+      pedido.lat = hasSelectedPoint && !addressMovedWithoutNewLocation ? selectedLocation[0] : null;
+      pedido.lng = hasSelectedPoint && !addressMovedWithoutNewLocation ? selectedLocation[1] : null;
+      pedido.needsLocationReview = !hasSelectedPoint || addressMovedWithoutNewLocation;
+      pedido.locationStatus = hasSelectedPoint && !pedido.needsLocationReview ? 'confirmada':'pendiente';
       updatePedidoMarker(pedido);
       window.v3Audit ||= [];
       window.v3Audit.push({ at: new Date().toISOString(), action: 'Editar pedido', details: `Pedido #${pedido.number}` });
@@ -868,8 +865,10 @@ function handlePedidoSubmit(event) {
       name,
       address,
       reference,
-      lat: selectedLocation[0],
-      lng: selectedLocation[1],
+      lat: hasSelectedPoint ? selectedLocation[0] : null,
+      lng: hasSelectedPoint ? selectedLocation[1] : null,
+      needsLocationReview: !hasSelectedPoint,
+      locationStatus: hasSelectedPoint ? 'confirmada':'pendiente',
       status: 'pendiente',
     };
     pedidos.push(newPedido);
@@ -894,8 +893,8 @@ function initializeMap() {
     attribution: '© OpenStreetMap colaboradores',
   }).addTo(mapInstance);
 
-  startMarker = L.marker(startLocation, { title: 'Restaurante / Base' }).addTo(mapInstance);
-  startMarker.bindPopup('<strong>Restaurante / Punto de inicio</strong>');
+  // El centro inicial es únicamente una vista del mapa: nunca una base o parada.
+  startMarker = null;
 
   mapInstance.on('click', (event) => {
     const clickedLocation = [event.latlng.lat, event.latlng.lng];
@@ -913,7 +912,7 @@ function initializeMap() {
       return;
     }
 
-    showPedidoForm(clickedLocation);
+    // Mapa de consulta: no agregar pedidos al tocarlo fuera del modo explícito.
   });
 
   pedidos.forEach(updatePedidoMarker);
@@ -1233,8 +1232,9 @@ function initVoice() {
 }
 
 function exportBackup() {
-  const content = localStorage.getItem('domicilios-cienaga-state') || '{}';
-  const blob = new Blob([content], { type: 'application/json' });
+  const saved=JSON.parse(localStorage.getItem('domicilios-cienaga-state') || '{}');
+  saved.shifts=window.domicilioV53?.readHistory?.()||[];
+  const blob = new Blob([JSON.stringify(saved,null,2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1254,6 +1254,7 @@ async function importBackup(e) {
       throw new Error('Formato de copia inválido');
     }
     if (!confirm('¿Reemplazar todos los pedidos y reglas locales por esta copia?')) return;
+    if(Array.isArray(state.shifts)) window.domicilioV53?.restoreHistory?.(state.shifts);
     localStorage.setItem('domicilios-cienaga-state', JSON.stringify(state));
     showToast('Copia importada con éxito', 'success');
     setTimeout(() => location.reload(), 600);
@@ -1440,8 +1441,9 @@ async function proposeRouteOrder() {
     return;
   }
 
-  const origin = gpsPosition || startLocation;
-  const finalPoint = window.v3Destination?.point || ((window.v3Destination?.mode === 'start' || returnToStartInput.checked) ? startLocation : null);
+  const origin = window.domicilioV5?.routeOrigin?.();
+  if (!origin) {showToast('Necesitas GPS actual para proponer un recorrido.', 'warning');return;}
+  const finalPoint = null; // V5.3: no añadir regresos ni bases automáticamente.
   const coords = [origin, ...active.map(p => [p.lat, p.lng]), ...(finalPoint ? [finalPoint] : [])];
   const url = 'https://router.project-osrm.org/table/v1/driving/' + coords.map(c => `${c[1]},${c[0]}`).join(';') + '?annotations=duration';
 
@@ -1563,10 +1565,10 @@ document.getElementById('select-pedido-map')?.addEventListener('click', () => {
 document.getElementById('cancel-pedido')?.addEventListener('click', resetPedidoForm);
 document.getElementById('cancel-pedido-icon')?.addEventListener('click', resetPedidoForm);
 document.getElementById('open-new-order-btn')?.addEventListener('click', () => {
-  showPedidoForm(startLocation);
+  showPedidoForm(null);
 });
 document.getElementById('global-fab-order')?.addEventListener('click', () => {
-  showPedidoForm(startLocation);
+  showPedidoForm(null);
 });
 
 document.getElementById('gps-button')?.addEventListener('click', startGps);

@@ -41,18 +41,10 @@
   };
 
   const endShift = () => {
-    const doneCount = pedidos.filter((p) => p.status === 'entregado').length;
-    const pendingCount = pedidos.filter((p) => p.status === 'pendiente' || p.status === 'en_ruta').length;
-
-    const confirmMsg = `¿Deseas finalizar tu jornada actual?\n\n• Entregas completadas: ${doneCount}\n• Pedidos pendientes: ${pendingCount}\n\nSe registrará el cierre en el historial.`;
-    if (!confirm(confirmMsg)) return;
-
-    audit('Finalizar jornada', `Cierre de turno: ${doneCount} entregados, ${pendingCount} pendientes`);
-    localStorage.removeItem('domicilio-shift-start');
-    initShiftTimer();
-    render();
-    showToast('Jornada finalizada correctamente. ¡Buen trabajo!', 'success', 4000);
+    if(window.domicilioV53?.finishShift) window.domicilioV53.finishShift();
+    else showToast('El módulo de jornadas no está disponible. No se borró ningún pedido.', 'danger');
   };
+
 
   // 2. RELOJ Y FECHA EN TIEMPO REAL
   const startLiveClock = () => {
@@ -198,26 +190,16 @@
 
       if (btnGo) {
         btnGo.style.display = 'inline-flex';
-        btnGo.onclick = () => {
-          navigate('map');
-          setTimeout(() => {
-            const marker = pedidoMarkers.get(next.id);
-            if (marker && mapInstance) {
-              mapInstance.flyTo([next.lat, next.lng], 16);
-              marker.openPopup();
-            }
-          }, 120);
-        };
+        btnGo.onclick=()=>window.domicilioNav?.start(next);
       }
-
       if (btnViewMap) {
         btnViewMap.style.display = 'inline-flex';
-        btnViewMap.onclick = () => {
-          if (mapInstance) {
-            mapInstance.flyTo([next.lat, next.lng], 15);
-            const marker = pedidoMarkers.get(next.id);
-            if (marker) marker.openPopup();
-          }
+        btnViewMap.onclick=()=>{
+          window.v3Navigate?.('map');
+          const located=Number.isFinite(next.lat)&&Number.isFinite(next.lng)&&!next.needsLocationReview;
+          if(!located){showToast(`Pedido #${next.number}: ${next.address||'dirección pendiente'} (sin punto GPS)`, 'info',6000);return;}
+          mapInstance?.flyTo([next.lat,next.lng],15);
+          pedidoMarkers.get(next.id)?.openPopup();
         };
       }
     } else {
@@ -498,7 +480,7 @@
   });
 
   // Opciones del Dropdown de Usuario
-  $('menu-goto-stats')?.addEventListener('click', () => navigate('stats'));
+  $('menu-goto-stats')?.addEventListener('click', () => navigate('history'));
   $('menu-goto-history')?.addEventListener('click', () => navigate('history'));
   $('menu-goto-settings')?.addEventListener('click', () => navigate('settings'));
   $('menu-end-shift')?.addEventListener('click', endShift);
@@ -511,7 +493,7 @@
       showToast('No tienes pedidos pendientes para entregar', 'info');
       return;
     }
-    navigate('map');
+    window.domicilioNav?.start(active[0]);
     const mapCard = $('map-delivery-card');
     if (mapCard) mapCard.classList.remove('hidden');
     audit('Reanudar jornada');
@@ -521,7 +503,7 @@
   // 8. ACCIONES RÁPIDAS DE LA PANTALLA DE INICIO
   $('home-quick-new-order')?.addEventListener('click', () => {
     navigate('orders');
-    showPedidoForm(startLocation);
+    showPedidoForm(null);
   });
 
   $('home-quick-optimize')?.addEventListener('click', () => {
@@ -539,7 +521,7 @@
   });
 
   $('home-quick-stats')?.addEventListener('click', () => {
-    navigate('stats');
+    navigate('history');
   });
 
   // Botón ampliar mapa en inicio
@@ -554,16 +536,16 @@
   });
 
   // 9. WIDGET DEL CEREBRO IA EN EL INICIO
-  $('home-ai-expand-btn')?.addEventListener('click', () => navigate('ai'));
+  $('home-ai-expand-btn')?.addEventListener('click', () => navigate('settings'));
 
   $('home-ai-send-btn')?.addEventListener('click', () => {
     const input = $('home-ai-input');
     if (!input || !input.value.trim()) return;
     const text = input.value.trim();
     input.value = '';
-    $('assistant-input').value = text;
-    navigate('ai');
-    previewInstruction();
+    $('v53-question').value = text;
+    navigate('settings');
+    $('v53-ask')?.click();
   });
 
   $('home-ai-input')?.addEventListener('keydown', (e) => {
@@ -574,8 +556,8 @@
   });
 
   $('home-ai-mic-btn')?.addEventListener('click', () => {
-    navigate('ai');
-    $('assistant-record')?.click();
+    navigate('settings');
+    showToast('Para consultar por texto, utiliza el asistente en Configuración.', 'info');
   });
 
   // 10. HERRAMIENTAS DEL MAPA PRINCIPAL

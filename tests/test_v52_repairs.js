@@ -12,7 +12,7 @@ assert.strictEqual(ordered.map(x=>x.id).join(','),'a,m,b','La parada sin GPS deb
 assert.strictEqual(v.mergeUnknown([a,b],[mid],'a')[0].id,'a','La entrega activa debe permanecer primero');
 assert(v.valid({lat:11,lng:-74.2,needsLocationReview:false}));
 assert(!v.valid({lat:11,lng:-74.2,needsLocationReview:true}));
-assert.strictEqual(v.routeOrigin().join(','),'11,-74.24','Sin GPS no se debe afirmar una posición actual');
+assert.strictEqual(v.routeOrigin(),null,'Sin GPS no se debe simular punto de base');
 (async()=>{await v.optimize();assert.strictEqual(v.routeOrigin().join(','),'11.001,-74.2');
 assert(v.recordDeliveredOrigin([11.002,-74.203],8));
 assert.strictEqual(v.lastConfirmed.coords.join(','),'11.002,-74.203');
