@@ -163,6 +163,7 @@
     watch=navigator.geolocation.watchPosition(updateGps,e=>{status('GPS no disponible');message('No se pudo obtener el GPS: '+e.message);},{enableHighAccuracy:true,maximumAge:3000,timeout:18000});
   }
   function start(pedido) {
+    if(pedido?.locationStatus==='estimada' && !confirm('La ubicación encontrada es aproximada, corresponde a la CALLE y no necesariamente a esta casa. ¿Quieres ver un recorrido orientativo y confirmar el domicilio al llegar?'))return;
     if(!pedido || pedido.needsLocationReview || pedido.lat == null || pedido.lng == null || !Number.isFinite(Number(pedido.lat)) || !Number.isFinite(Number(pedido.lng))) {showToast('Este pedido no tiene coordenadas válidas','danger');return;}
     // No reutilizar instrucciones o geometría del pedido anterior.
     routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;lastVoice='';resetVoiceGuidance();
@@ -190,7 +191,10 @@
     const next=pending[0];
     if(autoNextCheckbox.checked && next) {
       // No elegir silenciosamente otra parada cuando la siguiente carece de coordenadas.
-      if(!Number.isFinite(Number(next.lat)) || !Number.isFinite(Number(next.lng))) {
+      if(next.locationStatus==='estimada') {
+        stop();window.domicilioSuggestAfterDelivery?.();showToast(`Entrega registrada. El pedido #${next.number} tiene ubicación aproximada; confirma antes de navegar.`, 'info', 6000);return;
+      }
+      if(next.lat == null || next.lng == null || !Number.isFinite(Number(next.lat)) || !Number.isFinite(Number(next.lng))) {
         stop();window.domicilioSuggestAfterDelivery?.();showToast(`Entrega registrada. El pedido #${next.number} requiere verificar su ubicación.`, 'info', 6000);return;
       }
       stop();start(next);

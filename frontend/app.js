@@ -224,6 +224,7 @@ function renderPedidoList() {
       }, 150);
     });
 
+    if(pedido.locationStatus==='estimada'){const hint=document.createElement('p');hint.className='small';hint.textContent='⚠ Punto estimado de la calle; confirma la casa antes de navegar.';buttonsGrid.appendChild(hint);}
     const navigateBtn = document.createElement('button');
     navigateBtn.type = 'button';
     navigateBtn.className = 'btn btn-primary btn-sm';
@@ -250,7 +251,8 @@ function renderPedidoList() {
       pedidoNameInput.value = pedido.name && !pedido.name.startsWith('Pedido #') ? pedido.name : '';
       pedidoAddressInput.value = pedido.address === 'Ubicación seleccionada en el mapa' ? '' : pedido.address || '';
       document.getElementById('pedido-reference').value = pedido.reference || '';
-      updateSelectedLocation([pedido.lat, pedido.lng]);
+      if(Number.isFinite(pedido.lat)&&Number.isFinite(pedido.lng))updateSelectedLocation([pedido.lat, pedido.lng]);
+      else {selectedLocation=null;selectedCoordinates.textContent='Ubicación pendiente: usa el mapa o busca dirección';}
       document.getElementById('form-title').textContent = `Editar Pedido #${pedido.number}`;
       pedidoFormWrapper.classList.remove('hidden');
       pedidoFormWrapper.scrollIntoView({ behavior: 'smooth' });
@@ -272,7 +274,7 @@ function renderPedidoList() {
         if (confirm(`¿Mover el pedido #${pedido.number} a estas coordenadas?\n${formatCoordinates(newCoords)}`)) {
           pedido.lat = newCoords[0];
           pedido.lng = newCoords[1];
-          pedido.needsLocationReview = false;
+          pedido.needsLocationReview = false;pedido.locationStatus='confirmada';pedido.locationSource='mapa-confirmado';
           updatePedidoMarker(pedido);
           saveState();
           renderPedidoList();
