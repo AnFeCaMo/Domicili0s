@@ -14,5 +14,5 @@ const app=fs.readFileSync('frontend/app.js','utf8');
 assert(app.includes('domicilio-order-pin--${tone}'),'Colores diferentes para pedidos');
 assert(app.includes('zIndexOffset:isCurrent?1200'),'Destino activo por delante de otros');
 const html=fs.readFileSync('frontend/index.html','utf8');
-assert(html.includes('DOMICILIO V5.4.0')&&html.includes('id="v540-map-legend"'));
-console.log('V5.4.0: distancia prioritaria, desvíos, marcadores y leyenda: OK');
+assert(html.includes('DOMICILIO V5.4.1')&&html.includes('id="v540-map-legend"'));
+console.log('V5.4.1: distancia prioritaria, desvíos, marcadores y leyenda: OK');

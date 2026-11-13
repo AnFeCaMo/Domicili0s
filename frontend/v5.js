@@ -7,28 +7,8 @@
   const norm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
   const key = s => norm(window.domicilioNormalizeAddress?.(s)||s);
   const notice = (s,error=false) => { const el=$('v5-plan-status'); if(el){el.textContent=s;el.style.color=error?'#b91c1c':'';} const bulk=$('bulk-status');if(bulk)bulk.textContent=s; };
-  const rules = [
-    'Una sola optimización revisa todos los pedidos e importa la lista nueva, sin perder domicilios si no aparece GPS.',
-    'La dirección escrita es válida aunque no esté cartografiada; solo se da guía por calles para coordenadas comprobables.',
-    'Una ubicación GPS se aprende al llegar, con precisión aceptable, consentimiento explícito y confirmación del repartidor.',
-    'Después de cada entrega, el GPS real es el origen; si no está disponible, usar último lugar confirmado y advertir.',
-    'Comparar el coste de la ruta completa por carreteras y sentidos únicos disponibles, no solo el siguiente punto.',
-    'La lista por nomenclatura para direcciones sin ubicación es aproximada y nunca se anuncia como ruta GPS exacta.',
-    'Separa índices 1., 2., 3., nombres, direcciones, barrio, apartamento y esquina; no inventa datos ambiguos.',
-    'La ruta en curso y la próxima entrega no cambian sin autorización; los pedidos terminados quedan excluidos.',
-    'Un único botón Optimizar toda mi ruta prepara la lista, la propuesta y dibuja automáticamente la geometría disponible.',
-    'No anunciar direcciones rectas continuamente: aviso de giro a unos 100 m, 50 m y cuando se alcanza el cruce.',
-    'No afirmar tráfico, policía o cierres en tiempo real si no hay fuente pública fiable de dichos eventos.',
-    'El regreso a Casa o base respeta sentidos de circulación conocidos y se calcula como trayecto propio.',
-    'El GPS del teléfono localiza al repartidor; el buscador de direcciones localiza los destinos y debe ejecutarse antes de dar todos por pendientes.',
-    'Una calle encontrada sin portal exacto es una ubicación aproximada: mostrar advertencia y confirmar el domicilio al llegar.',
-    'No interpretar una coincidencia de calle como una vivienda exacta; nunca mover a otra ciudad por una búsqueda ambigua.'
-  ];
-  function installRules(){
-    const existing=new Set(learnedRules.map(r=>r.text));let added=false;
-    for(const text of rules) if(!existing.has(text)){learnedRules.push({id:generatePedidoId(),text,source:'v5-default',createdAt:new Date().toISOString()});added=true;}
-    if(added){saveState();window.v3Refresh?.();}
-  }
+  // Las reglas editables son preferencias documentadas y no controlan el servicio OSRM.
+  // No instalar reglas predeterminadas al arrancar: respeta las reglas borradas por usuario.
   // El número de casa de una dirección no ofrece coordenadas confiables por sí solo.
   function nomenclature(p){
     const m=String(p.address||'').match(/\b(calle|carrera)\s+(\d+[a-z]?)\s*(?:#\s*(\d+[a-z]?))?/i);
@@ -140,17 +120,24 @@
       return {order:indices.map(i=>known[i-1]),minutes:null,approx:true};
     }
     const coords=[origin,...known.map(p=>[p.lat,p.lng]),...(destination?[destination]:[])];
-    const url='https://router.project-osrm.org/table/v1/driving/'+coords.map(c=>`${c[1]},${c[0]}`).join(';')+'?annotations=duration';
+    const url='https://router.project-osrm.org/table/v1/driving/'+coords.map(c=>`${c[1]},${c[0]}`).join(';')+'?annotations=distance,duration';
     const r=await fetch(url,{signal:AbortSignal.timeout(18000)});
     if(!r.ok)throw Error('No se pudo consultar el cálculo de rutas por calles');
     const data=await r.json();if(data.code!=='Ok'||!data.durations)throw Error('La red vial no devolvió tiempos para todas las paradas');
     const ids=known.map((_,i)=>i+1);
     const ranks=Object.fromEntries(known.map((p,i)=>[i+1,p.priority==='urgente'?0:p.priority==='prioritario'?1:2]));
     const locked=lockedId?ids.find(i=>known[i-1].id===lockedId):null;
-    // Los pedidos urgentes se priorizan; la matriz dirigida respeta las calles de un solo sentido registradas.
-    const sorted=window.domicilioRouteOptimizer.withPriority(ids,data.durations,destination?coords.length-1:null,ranks,locked||null);
+    // Preferir distancias de carretera dirigidas; añadir una pequeña penalización
+    // por tiempo y usar minutos como respaldo si OSRM no devuelve distancias.
+    const hasDistances=Array.isArray(data.distances)&&data.distances.length===coords.length&&
+      data.distances.every(row=>Array.isArray(row)&&row.length===coords.length);
+    const costs=hasDistances?data.distances.map((row,i)=>row.map((meters,j)=>
+      Number.isFinite(meters)&&Number.isFinite(data.durations[i]?.[j])
+        ? meters+data.durations[i][j]*0.3 : Infinity)):data.durations;
+    const sorted=window.domicilioRouteOptimizer.withPriority(ids,costs,destination?coords.length-1:null,ranks,locked||null);
     const seconds=window.domicilioRouteOptimizer.cost(sorted,data.durations,destination?coords.length-1:null);
-    return {order:sorted.map(i=>known[i-1]),minutes:Number.isFinite(seconds)?Math.round(seconds/60):null};
+    return {order:sorted.map(i=>known[i-1]),minutes:Number.isFinite(seconds)?Math.round(seconds/60):null,
+      usedDistances:hasDistances};
   }
   let busy=false, generation=0;
   async function optimize({afterDelivery=false,source='routes'}={}){
@@ -249,8 +236,8 @@
         window.domicilioMonitor?.reviewAll?.();
         window.domicilioBulkV5?.clear();
         visual.replaceChildren(text('p','Tu lista está organizada. El mapa mostrará los puntos localizados; los restantes siguen pendientes de GPS.'));
-        if(known.length){await calculateRoute();window.v3Navigate?.('map');}
-        else window.v3Navigate?.('orders');
+        if(known.length)await calculateRoute();
+        // Permanecer en Rutas/Pedidos para consultar y marcar la lista, sin abrir el mapa automáticamente.
         notice('Jornada actualizada. Comprueba las ubicaciones y comienza tu recorrido.');
       };
       visual.append(accept,cancel);
@@ -280,5 +267,5 @@
   window.domicilioV5={optimize,captureAtOrder,approximateOrder,mergeUnknown,routeOrigin,recordDeliveredOrigin,valid,get lastConfirmed(){return lastConfirmed;}};
   [$('v5-optimize-all'),$('v5-optimize-orders')].filter(Boolean).forEach(btn=>btn.addEventListener('click',()=>optimize({source:btn.id==='v5-optimize-orders'?'orders':'routes'})));
   $('v5-mobile-end-shift')?.addEventListener('click',()=>$('menu-end-shift')?.click());
-  installRules();
+  // No reinstalar reglas eliminadas: las reglas editables son notas locales, no órdenes ejecutables.
 })();

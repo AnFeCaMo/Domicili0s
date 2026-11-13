@@ -43,7 +43,7 @@
   }
   const autoNextKey = 'domicilio-v4-auto-next';
   const autoNextCheckbox = $('nav-v4-auto-next');
-  autoNextCheckbox.checked = localStorage.getItem(autoNextKey) !== 'false';
+  autoNextCheckbox.checked = true; // El avance forma parte del flujo básico; el control no se muestra.
   autoNextCheckbox.addEventListener('change', () => {
     try { localStorage.setItem(autoNextKey, String(autoNextCheckbox.checked)); } catch (_) {}
   });
@@ -59,7 +59,7 @@
       speechSynthesis.speak(u);
     }
   }
-  function message(text, voice=false) { $('nav-v4-instruction').textContent=text; if(voice) announce(text); }
+  function message(text, voice=false) { const info=$('nav-v4-instruction'); if(info)info.textContent=text; if(voice) announce(text); }
   function routeWarning(text='') {const element=$('nav-v534-route-warning');if(element){element.textContent=text;element.hidden=!text;}}
   function showDestination(pedido) {
     const customer=$('nav-v4-customer'),address=$('nav-v4-address'),reference=$('nav-v4-reference');
@@ -194,7 +194,7 @@
       status('Navegando');
       $('nav-v4-details').textContent=`${(route.distance/1000).toFixed(2)} km · ${Math.ceil(route.duration/60)} min estimados · ${destinationIsBase?'Regreso':'Ida'}`;
       if(warnings.length) {
-        message('Ruta con advertencia: '+warnings.join(' ')+' Comprueba las señales y el destino.',true);
+        message('Ruta orientativa. Comprueba la dirección y las señales.',true);
       } else message(steps.length?'Ruta preparada. Sigue las indicaciones del mapa. Avisaré antes de cada giro.':'Sigue la ruta indicada por las flechas.',true);
       try {localStorage.setItem('domicilio-v4-last-route',JSON.stringify({target,geometry:route.geometry,at:Date.now()}));}catch(_){}
     }catch(e) {if(generation===routeGeneration) {status('Ruta no disponible');message(`No se pudo actualizar la ruta: ${e.message}. Revisa la conexión.`,true);}}
@@ -211,15 +211,15 @@
     if(pedido.needsLocationReview || pedido.lat == null || pedido.lng == null || !Number.isFinite(Number(pedido.lat)) || !Number.isFinite(Number(pedido.lng))) {
       stop();routeWarning();showDestination(pedido);target={id:pedido.id,number:pedido.number,coords:null};panel.hidden=false;
       window.v3Navigate?.('map');status('Ubicación no localizada');
-      message(`Pedido #${pedido.number}: ${pedido.name||'Cliente'}. Dirección: ${pedido.address||'sin dirección'}${pedido.reference?' · Referencia: '+pedido.reference:''}. Confirma la ubicación al llegar.`);
-      $('nav-v53-capture')?.removeAttribute('hidden');return;
+      message('No se confirmó un punto GPS para este domicilio. Revisa la dirección y utiliza la lista de entregas.',true);
+      $('nav-v53-capture')?.removeAttribute('hidden');window.domicilioRefreshRouteList?.();return;
     }
     // No reutilizar instrucciones o geometría del pedido anterior.
     routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;offRouteSamples=0;lastVoice='';routeWarning();window.domicilioMonitor?.ingestRouteAudit?.(null);resetVoiceGuidance();
     removeLayer(line);line=null;removeArrows(arrows);
     $('nav-v53-capture')?.setAttribute('hidden','');
     destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)],approximate:pedido.locationStatus==='estimada'};
-    showDestination(pedido);panel.hidden=false;if(typeof updatePedidoMarker==='function')updatePedidoMarker(pedido); window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
+    showDestination(pedido);panel.hidden=false;if(typeof updatePedidoMarker==='function')updatePedidoMarker(pedido); window.domicilioRefreshRouteList?.(); window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
     beginGps(); if(freshGps()) calculate();
     else navigator.geolocation?.getCurrentPosition(pos=>{updateGps(pos);calculate();},()=>{}, {enableHighAccuracy:true,timeout:15000});
   }
@@ -230,7 +230,7 @@
     destinationIsBase=true; target={id:null,coords:[...startLocation]}; arrived=false;resetVoiceGuidance();
     panel.hidden=false; window.v3Navigate?.('map'); beginGps(); calculate();
   }
-  function stop() {const previousId=target?.id;routeWarning();window.domicilioMonitor?.ingestRouteAudit?.(null);$('nav-v53-capture')?.setAttribute('hidden','');resetDestination();resetVoiceGuidance();routeGeneration++;calculating=false;offRouteSamples=0;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}if(previousId){const previous=pedidos.find(p=>p.id===previousId);if(previous&&typeof updatePedidoMarker==='function')updatePedidoMarker(previous);}}
+  function stop() {const previousId=target?.id;routeWarning();window.domicilioMonitor?.ingestRouteAudit?.(null);$('nav-v53-capture')?.setAttribute('hidden','');resetDestination();resetVoiceGuidance();routeGeneration++;calculating=false;offRouteSamples=0;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}if(previousId){const previous=pedidos.find(p=>p.id===previousId);if(previous&&typeof updatePedidoMarker==='function')updatePedidoMarker(previous);}window.domicilioRefreshRouteList?.();}
   function deliver() {
     if(!target?.id) {message('Estás navegando al punto de salida, no a un pedido.');return;}
     const currentId=target.id;
@@ -249,6 +249,20 @@
       if(!autoNextCheckbox.checked) showToast(`Entregado. El siguiente es #${next.number}: ${next.address||'dirección pendiente'}`, 'success', 5500);
     } else showToast('Jornada sin pedidos pendientes. Finalízala cuando decidas.', 'success', 5500);
   }
+  function markNotDelivered() {
+    if(!target?.id)return;
+    const p=pedidos.find(item=>item.id===target.id);
+    if(!p)return;
+    if(!confirm(`¿Registrar como no entregado el pedido #${p.number}?\nMotivo: la persona no se encontraba.`))return;
+    p.status='fallido';p.failedAt=new Date().toISOString();p.failedReason='Cliente no se encontraba';
+    window.v3Audit ||= [];
+    window.v3Audit.push({at:p.failedAt,action:'Entrega no realizada',details:`Pedido #${p.number}: ${p.failedReason}`});
+    updatePedidoMarker(p);saveState();renderPedidoList();window.v3Refresh?.();
+    stop();
+    window.domicilioV53?.advanceAfterDelivery?.();
+    if(!getRoutePedidos().length)showToast('No quedan pedidos pendientes. Puedes finalizar tu jornada.','info');
+  }
+  $('nav-v541-failed')?.addEventListener('click',markNotDelivered);
   $('nav-v4-lost').addEventListener('click',()=>{
     if(!target)return;
     if(!target.coords) {

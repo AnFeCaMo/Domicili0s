@@ -1,3 +1,17 @@
+# DOMICILIO V5.4.1 — Navegación despejada y lista de reparto
+
+**Versión actual: 5.4.1.** Se revisó el flujo completo de direcciones, prioridades, orden, mapa, voz, estados de pedidos e historial. Consulta [MEJORAS_V5_4_1.md](MEJORAS_V5_4_1.md) e [INSTALAR_V5_4_1.md](INSTALAR_V5_4_1.md).
+
+- La tarjeta GPS solo presenta nombre, dirección y botones **Entregado / No entregado**. La navegación habla las indicaciones y oculta su texto para dejar visible el mapa.
+- En **Rutas** existe una **lista de entregas operativa**. Puedes entregar o registrar un pedido no entregado sin iniciar navegación. El siguiente pedido conserva el orden aprobado.
+- La propuesta de optimización se aprueba antes de cambiar el orden; ahora solicita distancias viales dirigidas cuando el servicio las proporciona y prioriza distancias, sin alterar rutas en curso.
+- La localización por dirección no siempre encuentra casas exactas; un punto aproximado queda advertido y un pedido sin GPS sigue visible en la lista. No se inventan coordenadas.
+- **Limitación conocida:** las rutas siguen usando cartografía pública OSRM con perfil de automóvil. El orden completo para domicilios sin ubicación es aproximado y esta versión no resuelve por sí sola todas las direcciones de Ciénaga. La red vial y los sentidos dependen del proveedor público.
+- Las reglas editables guardadas son notas locales, no modifican por sí mismas los cálculos cartográficos. **No se reinstalan al cargar las reglas eliminadas.**
+- Los pedidos y el historial se guardan en este navegador. Exporta una copia JSON antes de cambiar de versión o borrar datos del sitio.
+
+---
+
 # DOMICILIO V5.3.4
 
 **Versión actual: 5.3.4.** Repositorio: https://github.com/AnFeCaMo/Domicili0s

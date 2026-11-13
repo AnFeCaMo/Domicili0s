@@ -17,6 +17,6 @@ vm.createContext(ctx);vm.runInContext(fs.readFileSync(__dirname+'/../frontend/v5
  assert.strictEqual(orders.length,1,'Pedido sin GPS se conserva');
  assert.strictEqual(orders[0].lat,null);assert.strictEqual(orders[0].lng,null);
  assert(ctx.cleared);assert(saved>=1);assert(rendered>0);
- assert(rules.some(r=>r.text.includes('Una sola optimización')));
+ assert.strictEqual(rules.length,0,'No reinstalar reglas borradas o predeterminadas');
  console.log('V5: importar y ordenar un pedido sin GPS sin perderlo: OK');
 })().catch(err=>{console.error(err);process.exit(1)});

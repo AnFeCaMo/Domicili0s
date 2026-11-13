@@ -5,7 +5,7 @@
     <meta name="theme-color" content="#6D28D9" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>DOMICILIO V5.4.0 · Asistente Inteligente de Reparto</title>
+    <title>DOMICILIO V5.4.1 · Asistente Inteligente de Reparto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -29,11 +29,11 @@
           <i data-lucide="menu"></i>
         </button>
         <div class="brand-badge-icon">
-          <i data-lucide="bike"></i>
+          <i data-lucide="package"></i>
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V5.4.0</span>
+            <span class="brand-title">DOMICILIO V5.4.1</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -206,7 +206,7 @@
 
             <!-- 3. En ruta (Icono Naranja) -->
             <div class="stat-box stat-orange">
-              <div class="stat-box-icon"><i data-lucide="bike"></i></div>
+              <div class="stat-box-icon"><i data-lucide="package"></i></div>
               <div class="stat-box-data">
                 <span class="stat-box-number" id="dash-route-count">0</span>
                 <span class="stat-box-label">En ruta</span>
@@ -561,7 +561,7 @@
         <section id="routes-view" class="v3-view-screen hidden">
           <div class="screen-page-header">
             <div>
-              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.4.0</h2>
+              <h2 class="screen-page-title">Rutas y Secuencia de Entrega · V5.4.1</h2>
               <p class="screen-page-subtitle">Tu ubicación GPS actual será el origen. No hay regreso automático.</p>
             </div>
           </div>
@@ -640,6 +640,13 @@
               <div id="v43-current-orders" class="suggestion-box" aria-live="polite"></div>
               <div id="suggestion-preview" class="suggestion-box" aria-live="polite"></div>
               <div id="address-feedback" class="address-feedback hidden" aria-live="polite"></div>
+            </div>
+
+            <!-- Lista operativa: siempre disponible, incluso sin GPS -->
+            <div class="card route-panel-card route-checklist-panel">
+              <h3 class="panel-card-title">Lista de entregas <span id="route-checklist-count" class="route-checklist-count"></span></h3>
+              <p class="small text-secondary">Orden actual aprobado. Puedes trabajar desde esta lista sin abrir el mapa; las direcciones sin GPS siguen visibles.</p>
+              <ol id="route-checklist" class="route-checklist" aria-label="Pedidos pendientes en orden"></ol>
             </div>
 
             <!-- Resumen de Itinerario -->
@@ -938,7 +945,7 @@
             <!-- 5. Información del Proyecto y Autor -->
             <div class="card settings-section-card about-app-card">
               <div class="about-app-inner">
-                <h4>DOMICILIO V5.4.0 · Asistente Inteligente de Reparto</h4>
+                <h4>DOMICILIO V5.4.1 · Asistente Inteligente de Reparto</h4>
                 <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
                 <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
               </div>
@@ -978,26 +985,30 @@
       </button>
     </nav>
 
-    <section id="nav-v4" class="nav-v4" aria-label="Navegación GPS" hidden>
-      <div class="nav-v4-title">🧭 Navegación GPS <span id="nav-v4-state">Lista</span></div>
-      <div class="nav-v4-destination" aria-label="Pedido y dirección actuales">
-        <div class="nav-v4-destination-caption">ENTREGA ACTUAL</div>
-        <strong id="nav-v4-customer">Cliente sin nombre</strong>
-        <div id="nav-v4-address">Dirección pendiente</div>
-        <div id="nav-v4-reference" hidden></div>
+    <section id="nav-v4" class="nav-v4 nav-v541-compact" aria-label="Entrega actual" hidden>
+      <div class="nav-v541-top">
+        <div class="nav-v4-destination" aria-label="Cliente y dirección de entrega">
+          <strong id="nav-v4-customer">Cliente sin nombre</strong>
+          <div id="nav-v4-address">Dirección pendiente</div>
+          <div id="nav-v4-reference" hidden></div>
+        </div>
+        <button type="button" id="nav-v4-stop" class="nav-v541-close" aria-label="Cerrar navegación sin marcar entrega" title="Detener navegación">×</button>
       </div>
-      <div id="nav-v4-instruction" aria-live="polite">Elige un pedido y pulsa Ir al pedido.</div>
-      <div id="nav-v4-details">Ubicación no iniciada</div>
-      <p id="nav-v534-route-warning" class="nav-v534-route-warning" role="alert" hidden></p>
-      <label class="nav-v4-auto-next"><input type="checkbox" id="nav-v4-auto-next" checked> Ir automáticamente al siguiente pedido después de confirmar la entrega</label>
-      <div class="nav-v4-buttons">
-        <button type="button" id="nav-v4-lost">↻ Estoy perdido · Recalcular</button>
-        <button type="button" id="nav-v4-repeat">🔊 Repetir indicación</button>
-        <button type="button" id="nav-v4-return" hidden>Regresar a base</button>
-        <button type="button" id="nav-v53-capture" hidden>📍 Estoy en esta dirección</button>
-        <button type="button" id="nav-v4-arrived">✓ Entregado · Detener navegación</button>
-        <button type="button" id="nav-v4-stop">■ Detener</button>
+      <!-- Los avisos son para lectura de pantalla / voz, no ocupan el mapa. -->
+      <div id="nav-v4-instruction" class="nav-v541-sr-only" aria-live="off"></div>
+      <div id="nav-v4-details" class="nav-v541-sr-only"></div>
+      <div id="nav-v4-state" class="nav-v541-sr-only"></div>
+      <p id="nav-v534-route-warning" class="nav-v541-sr-only" hidden></p>
+      <input type="checkbox" id="nav-v4-auto-next" checked hidden aria-label="Avanzar automáticamente al siguiente pedido" />
+      <div class="nav-v4-buttons nav-v541-actions">
+        <button type="button" id="nav-v4-arrived">✓ Entregado</button>
+        <button type="button" id="nav-v541-failed">No entregado</button>
       </div>
+      <!-- Controles anteriores conservados en el DOM para compatibilidad; no son parte de la tarjeta. -->
+      <button type="button" id="nav-v4-lost" hidden>Recalcular</button>
+      <button type="button" id="nav-v4-repeat" hidden>Repetir</button>
+      <button type="button" id="nav-v4-return" hidden>Regresar</button>
+      <button type="button" id="nav-v53-capture" hidden>Confirmar esta ubicación</button>
     </section>
     <!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
     <div id="toast-container" class="toast-container" aria-live="polite"></div>
@@ -1009,16 +1020,17 @@
       crossorigin=""
     ></script>
     <script src="/static/route-optimizer.js"></script>
-    <script src="/static/app.js?v=54040"></script>
-    <script src="/static/v3.js?v=54040"></script>
-    <script src="/static/route-audit-v534.js?v=54040"></script>
-    <script src="/static/navigation.js?v=54040"></script>
+    <script src="/static/app.js?v=54101"></script>
+    <script src="/static/v3.js?v=54101"></script>
+    <script src="/static/route-audit-v534.js?v=54101"></script>
+    <script src="/static/navigation.js?v=54101"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script defer src="/static/bulk.js?v=540"></script>
-    <script defer src="/static/location-lookup.js?v=54040"></script>
-    <script defer src="/static/v5.js?v=54040"></script>
-    <script defer src="/static/v53.js?v=54040"></script>
-    <script defer src="/static/rules-manager.js?v=54040"></script>
-    <script defer src="/static/monitor-v533.js?v=54040"></script>
+    <script defer src="/static/bulk.js?v=541"></script>
+    <script defer src="/static/location-lookup.js?v=54101"></script>
+    <script defer src="/static/v5.js?v=54101"></script>
+    <script defer src="/static/v53.js?v=54101"></script>
+    <script defer src="/static/rules-manager.js?v=54101"></script>
+    <script defer src="/static/monitor-v533.js?v=54101"></script>
+    <script defer src="/static/route-checklist-v541.js?v=54101"></script>
   </body>
 </html>

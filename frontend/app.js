@@ -155,6 +155,7 @@ function renderPedidoList() {
       </p>
     `;
     pedidoList.appendChild(empty);
+    window.domicilioRefreshRouteList?.();
     return;
   }
 
@@ -403,6 +404,7 @@ function renderPedidoList() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
+  window.domicilioRefreshRouteList?.();
 }
 
 function formatCoordinates([lat, lng]) {
