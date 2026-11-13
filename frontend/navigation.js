@@ -246,7 +246,7 @@
     if(next) {
       // Siempre el siguiente del orden aprobado, incluso sin coordenadas.
       window.domicilioV53?.advanceAfterDelivery?.();
-      if(!autoNextCheckbox.checked) showToast(`Entregado. El siguiente es #${next.number}: ${next.address||'dirección pendiente'}`, 'success', 5500);
+      if(!autoNextCheckbox.checked) showToast(`Entregado. La siguiente es la entrega 1: ${next.address||'dirección pendiente'}`, 'success', 5500);
     } else showToast('Jornada sin pedidos pendientes. Finalízala cuando decidas.', 'success', 5500);
   }
   function markNotDelivered() {

@@ -67,11 +67,17 @@ function generatePedidoId() {
 
 function formatPedidoText(pedido) {
   const addressLabel = pedido.address || pedido.name || 'Ubicación seleccionada en el mapa';
-  return `#${String(pedido.number).padStart(3, '0')} - ${addressLabel}`;
+  const pos = deliveryPosition(pedido);
+  return `${pos ? 'Entrega '+pos : 'Pedido finalizado'} - ${addressLabel}`;
 }
 
 function getRoutePedidos() {
-  return pedidos.filter((pedido) => !['entregado', 'fallido'].includes(pedido.status));
+  return pedidos.filter((pedido) => !['entregado', 'fallido', 'anulado'].includes(pedido.status));
+}
+// El número interno es estable; el número VISIBLE corresponde a la ruta aprobada.
+function deliveryPosition(pedido) {
+  return window.domicilioImportadorV542?.deliveryNumber(pedido,pedidos) ??
+    (()=>{const i=getRoutePedidos().findIndex(p=>p.id===pedido?.id);return i>=0?i+1:null;})();
 }
 
 function movePedido(pedidoId, direction) {
@@ -139,7 +145,8 @@ function renderPedidoList() {
   const filteredPedidos = pedidos.filter(pedido => {
     if (currentOrderFilter === 'all') return true;
     return pedido.status === currentOrderFilter;
-  });
+  }).sort((a,b) => Number(deliveryPosition(a)===null)-Number(deliveryPosition(b)===null));
+  // Los activos aparecen de arriba hacia abajo; los finalizados quedan después.
 
   if (filteredPedidos.length === 0) {
     const empty = document.createElement('li');
@@ -184,7 +191,7 @@ function renderPedidoList() {
     cardMain.innerHTML = `
       <div class="pedido-card-header">
         <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-          <div class="pedido-stop-badge">#${pedido.number}</div>
+          <div class="pedido-stop-badge" title="${deliveryPosition(pedido) ? 'Entrega ' + deliveryPosition(pedido) : 'Finalizado'}">${deliveryPosition(pedido) ?? (pedido.status==='entregado'?'✓':'×')}</div>
           <div class="pedido-card-info">
             <h4 class="pedido-customer-name">${String(pedido.name || 'Cliente sin nombre').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</h4>
             <div class="pedido-address-text">
@@ -405,6 +412,8 @@ function renderPedidoList() {
     window.lucide.createIcons();
   }
   window.domicilioRefreshRouteList?.();
+  // Actualizar TODAS las etiquetas del mapa al cambiar el orden o cerrar una entrega.
+  if (mapInstance && typeof L !== 'undefined') pedidos.forEach(updatePedidoMarker);
 }
 
 function formatCoordinates([lat, lng]) {
@@ -466,7 +475,7 @@ function renderRouteSummary(data, routeOrders = []) {
       <div style="font-size: 0.88rem; color: var(--text-secondary);">
         <strong>Secuencia recomendada (según datos disponibles):</strong>
         <ol style="margin-left: 20px; margin-top: 6px;">
-          ${routeOrders.map(p => `<li>#${escapePedidoHtml(p.number)} — ${escapePedidoHtml(p.name || p.address || 'Sin nombre')}</li>`).join('')}
+          ${routeOrders.map((p,i) => `<li>Entrega ${i+1} — ${escapePedidoHtml(p.name || p.address || 'Sin nombre')}</li>`).join('')}
         </ol>
       </div>
     `;
@@ -705,7 +714,7 @@ function updatePedidoMarker(pedido) {
   const color={actual:'#165cf2',estimado:'#f59e0b',terminado:'#6b7280',pendiente:'#16a34a'}[tone];
   const icon=L.divIcon({
     className:'domicilio-order-pin-wrap',
-    html:`<span class="domicilio-order-pin domicilio-order-pin--${tone}" style="--pin-color:${color}" aria-hidden="true">${escapePedidoHtml(pedido.number)}</span>`,
+    html:`<span class="domicilio-order-pin domicilio-order-pin--${tone}" style="--pin-color:${color}" aria-hidden="true">${escapePedidoHtml(deliveryPosition(pedido) ?? (pedido.status==='entregado'?'✓':'×'))}</span>`,
     iconSize:[40,46],iconAnchor:[20,42],popupAnchor:[0,-37]
   });
   const marker = L.marker([pedido.lat, pedido.lng], {
@@ -714,7 +723,7 @@ function updatePedidoMarker(pedido) {
 
   marker.bindPopup(`
     <div style="font-family: 'Inter', sans-serif; font-size: 13px;">
-      <strong>#${escapePedidoHtml(pedido.number)} · ${escapePedidoHtml(pedido.name || 'Cliente')}</strong><br/>
+      <strong>${deliveryPosition(pedido) ? 'Entrega '+deliveryPosition(pedido) : 'Pedido finalizado'} · ${escapePedidoHtml(pedido.name || 'Cliente')}</strong><br/>
       ${escapePedidoHtml(pedido.address || 'Ubicación en mapa')}<br/>
       <span style="font-weight: 700; color: ${color};">
         ${escapePedidoHtml(pedido.status.toUpperCase())}
@@ -936,6 +945,7 @@ function initializeMap() {
 
 // Asistente Local Heurístico
 function parseAddressList(text) {
+  if(window.domicilioImportadorV542?.parse) return window.domicilioImportadorV542.parse(text,normalizeAddress,separatePedidoFields);
   // V4.5: permitir listas numeradas copiadas de un chat o documento, tanto
   // «1. Cliente\nCalle...» como «1. Calle...\nCliente».
   const original=String(text||'').replace(/\r/g,'');
@@ -1399,7 +1409,7 @@ function displayCurrentOrders(mode='manual') {
   const list=document.createElement('div');list.className='v43-existing-list';panel.append(list);
   active.forEach((p,i)=>{
     const line=document.createElement('div');line.className='v43-existing-row';
-    const label=document.createElement('strong');label.textContent=`${i+1}. Pedido #${p.number}`;line.append(label);
+    const label=document.createElement('strong');label.textContent=`Entrega ${i+1}`;line.append(label);
     if(mode==='manual'){
       const up=document.createElement('button');up.type='button';up.className='btn btn-outline btn-sm';up.textContent='↑ Subir';up.disabled=i===0 || p.status==='en_ruta' || (i===1 && (active[0]?.status==='en_ruta' || window.domicilioNav?.currentTargetId?.()===active[0]?.id));
       up.onclick=()=>{movePedido(p.id,-1);displayCurrentOrders('manual');};

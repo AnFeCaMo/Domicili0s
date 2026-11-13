@@ -65,9 +65,14 @@
       if(separated)Object.assign(row,{name:separated.name,address:separated.address,reference:separated.reference});
       row.address = window.domicilioNormalizeAddress(row.address);
       const key = normalize(row.address)+'|'+normalize(row.name);
-      if (!clean(row.address) || keys.has(key)) return false;
-      keys.add(key); return true;
-    }).map((row,i)=>({...row,uid:i+1,lat:null,lng:null,checked:false,issue:'Sin verificar'}));
+      if (keys.has(key) && clean(row.address)) return false;
+      if(clean(row.address))keys.add(key);
+      const checked=window.domicilioImportadorV542?.validateAddress(row.address);
+      row.needsAddressReview=Boolean(row.needsAddressReview || (checked && !checked.ok));
+      row.addressIssue=row.addressIssue || (checked && !checked.ok ? checked.issue : '');
+      return true;
+    }).map((row,i)=>({...row,uid:i+1,lat:null,lng:null,checked:false,
+      issue:row.needsAddressReview ? '⚠ Revisar dirección: '+row.addressIssue : 'Sin verificar'}));
   }
   function preview() {
     results.replaceChildren(); proposal = null;mapPickRow=null;
@@ -77,7 +82,7 @@
       const item=document.createElement('div'); item.className='bulk-item';
       item.innerHTML=`<span class="bulk-index">${i+1}</span><div class="bulk-fields"><input aria-label="Nombre" placeholder="Cliente (opcional)" value="${escapeHtml(row.name)}" data-field="name"><input aria-label="Dirección" placeholder="Dirección" value="${escapeHtml(row.address)}" data-field="address"><input aria-label="Referencia" placeholder="Referencia" value="${escapeHtml(row.reference)}" data-field="reference"><select aria-label="Prioridad" data-field="priority"><option value="normal">Normal</option><option value="prioritario">Prioritario</option><option value="urgente">Urgente</option></select><small class="bulk-row-status">${escapeHtml(row.issue)}</small><button type="button" class="btn btn-secondary btn-sm bulk-map-pick">📍 Elegir punto en mapa</button></div><button type="button" class="bulk-remove" aria-label="Quitar dirección">×</button>`;
       item.querySelector('select').value=row.priority;
-      item.querySelectorAll('[data-field]').forEach(control=>control.addEventListener('change',()=>{row[control.dataset.field]=control.dataset.field==='address'?window.domicilioNormalizeAddress(control.value):control.value; if(control.dataset.field==='address')control.value=row.address; row.checked=false; row.lat=null; row.lng=null; row.candidates=null; row.issue='Sin verificar'; item.querySelector('.bulk-row-status').textContent=row.issue; proposal=null;}));
+      item.querySelectorAll('[data-field]').forEach(control=>control.addEventListener('change',()=>{row[control.dataset.field]=control.dataset.field==='address'?window.domicilioNormalizeAddress(control.value):control.value; if(control.dataset.field==='address'){control.value=row.address;const check=window.domicilioImportadorV542?.validateAddress(row.address);row.needsAddressReview=check?!check.ok:false;row.addressIssue=check?.issue||'';} row.checked=false; row.lat=null; row.lng=null; row.candidates=null; row.issue=row.needsAddressReview?'⚠ Revisar dirección: '+row.addressIssue:'Sin verificar'; item.querySelector('.bulk-row-status').textContent=row.issue; proposal=null;}));
       item.querySelector('.bulk-map-pick').onclick=()=>{
         if(mapPickRow===row){mapPickRow=null;status('Selección de mapa cancelada.');return;}
         mapPickRow=row;

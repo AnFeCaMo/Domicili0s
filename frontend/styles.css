@@ -3070,3 +3070,9 @@ input:focus, textarea:focus, select:focus {
 @media(min-width:768px){.nav-v4.nav-v541-compact{bottom:12px}}
 /* La tarjeta compacta solo muestra cliente y dirección; referencias siguen en Pedidos y la lista. */
 .nav-v4.nav-v541-compact #nav-v4-reference{display:none!important}
+
+/* V5.4.2 — lista vertical en orden real y revisión visible del importador. */
+.pedido-cards-list{display:flex!important;flex-direction:column!important;gap:12px}
+#bulk-parse{display:inline-flex!important}
+.bulk-row-status{overflow-wrap:anywhere}
+.bulk-item:has(.bulk-row-status){scroll-margin-top:90px}

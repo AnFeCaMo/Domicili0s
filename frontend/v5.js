@@ -150,6 +150,14 @@
       notice('Preparando toda la jornada y comprobando ubicaciones conocidas…');
       const old=getRoutePedidos();
       const incoming=afterDelivery?[]:(window.domicilioBulkV5?.getDraft()||[]);
+      const ambiguous=incoming.filter(p=>p.needsAddressReview ||
+        (window.domicilioImportadorV542?.validateAddress(p.address)?.ok===false));
+      if(ambiguous.length){
+        $('bulk-parse')?.click();
+        notice(`${ambiguous.length} dirección(es) requieren revisión. Corrige las placas en la vista previa antes de optimizar; no se guardó ningún pedido.`,true);
+        $('bulk-results')?.scrollIntoView?.({behavior:'smooth',block:'start'});
+        return;
+      }
       const keys=new Set(old.map(p=>key(p.address)+'|'+norm(p.name)));
       const newRows=[];
       for(const raw of incoming){

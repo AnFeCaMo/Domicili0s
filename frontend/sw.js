@@ -1,5 +1,5 @@
-const CACHE='domicilio-v541-minimal-20261113';
-const SHELL=['/','/static/styles.css','/static/route-optimizer.js','/static/app.js','/static/v3.js','/static/bulk.js', '/static/location-lookup.js','/static/v5.js','/static/navigation.js','/static/v53.js','/static/rules-manager.js','/static/monitor-v533.js','/static/route-audit-v534.js','/static/route-checklist-v541.js'];
+const CACHE='domicilio-v542-importer-20261113';
+const SHELL=['/','/static/styles.css','/static/route-optimizer.js','/static/address-importer-v542.js','/static/app.js','/static/v3.js','/static/bulk.js', '/static/location-lookup.js','/static/v5.js','/static/navigation.js','/static/v53.js','/static/rules-manager.js','/static/monitor-v533.js','/static/route-audit-v534.js','/static/route-checklist-v541.js'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
