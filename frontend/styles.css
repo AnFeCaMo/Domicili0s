@@ -3026,3 +3026,15 @@ input:focus, textarea:focus, select:focus {
 /* Verificación visual de rutas que dan vueltas inusuales. */
 .nav-v534-route-warning{padding:12px 14px;border:2px solid #b45309;border-radius:12px;background:#fff7ed;color:#7c2d12;font-size:.91rem;line-height:1.5;margin:10px 0;font-weight:600;overflow-wrap:anywhere}
 .nav-v534-route-warning[hidden]{display:none!important}
+
+/* DOMICILIO V5.4.0 — marcadores legibles en celulares, aun con varios pedidos cercanos. */
+.domicilio-order-pin-wrap{background:transparent;border:0}
+.domicilio-order-pin{position:relative;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border:3px solid #fff;background:var(--pin-color,#1668e9);color:white;border-radius:50%;box-shadow:0 2px 9px #0008;font-size:14px;font-weight:900;opacity:1}
+.domicilio-order-pin::after{content:"";position:absolute;left:13px;bottom:-9px;border-left:4px solid transparent;border-right:4px solid transparent;border-top:9px solid var(--pin-color,#1668e9)}
+.domicilio-order-pin--actual{width:40px;height:40px;outline:3px solid #1e40af;box-shadow:0 0 0 6px #2563eb44,0 3px 13px #0008}
+.domicilio-order-pin--estimado{border-style:dashed}
+.domicilio-order-pin--terminado{filter:saturate(.5)}
+
+.v540-map-legend{display:flex;flex-wrap:wrap;gap:5px 12px;align-items:center;padding:8px 12px;background:var(--card-bg,#fff);border:1px solid #9ca3af55;border-radius:10px;color:var(--text-primary,#222);font-size:12px;line-height:1.5;z-index:400}
+.v540-map-legend strong{font-size:12px}.v540-map-legend small{width:100%;opacity:.75}
+@media(max-width:600px){.v540-map-legend{font-size:11px;padding:7px}.v540-map-legend strong{width:100%}}

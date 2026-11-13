@@ -6,6 +6,7 @@
   let watch = null, point = null, marker = null, line = null, arrows = [], overviewArrows = [];
   let target = null, route = null, steps = [], stepIndex = -1, lastReroute = 0, lastVoice = '', arrived = false;
   let gpsAccuracy = Infinity, gpsTimestamp = 0, calculating = false, destinationIsBase = false, routeGeneration = 0;
+  let offRouteSamples=0;
   // Avisos discretos: solo al aproximarse a una maniobra, nunca cada 10 metros.
   let voiceStage = new Map(), lastSpokenAt = 0, lastTurnAdvanceAt = 0;
   const isTurn = (step) => {
@@ -122,8 +123,16 @@
     if(!route || !steps.length) return;
     guideAtGps();
     // Solo recalcular con desvío persistente aproximado y con intervalo mínimo.
-    if(route && Date.now()-lastReroute>45000 && navigator.onLine && distanceToLine(point,route.geometry.coordinates)>95) {
-      lastReroute=Date.now(); message('Posible desvío. Recalculando recorrido.',true); calculate();
+    if(route?.geometry?.coordinates && navigator.onLine && !calculating) {
+      const offMeters=distanceToLine(point,route.geometry.coordinates);
+      // Dos lecturas sucesivas fuera de la ruta; precisión GPS y latencia reducen falsos desvíos.
+      if(gpsAccuracy<=35 && offMeters>Math.max(40,2.5*gpsAccuracy))offRouteSamples++;
+      else offRouteSamples=0;
+      if(offRouteSamples>=2 && Date.now()-lastReroute>16000){
+        offRouteSamples=0;lastReroute=Date.now();
+        message('Cambiaste de calle. Actualizando la ruta desde donde estás.',true);
+        calculate();
+      }
     }
   }
   function distanceToLine(p,coords) {
@@ -174,17 +183,18 @@
       route=assessment?.route||data.routes[0];
       const warnings=[...(assessment?.issues||[])];
       if(target.approximate)warnings.unshift('El punto del destino es aproximado; no se ha identificado la vivienda exacta.');
+      if(assessment?.longDetour)warnings.push('No hay una alternativa más directa en los datos viales disponibles. La línea directa no confirma que el paso esté habilitado.');
       routeWarning(warnings.join(' '));
       window.domicilioMonitor?.ingestRouteAudit?.(assessment,target.id);
       steps=(route.legs||[]).flatMap(l=>l.steps||[]).map(s=>({...s,point:[s.maneuver.location[1],s.maneuver.location[0]]}));
-      stepIndex=-1; arrived=false; resetVoiceGuidance(); removeLayer(line); removeArrows(arrows);
-      line=L.geoJSON(route.geometry,{style:{color:destinationIsBase?'#e88725':'#1668e9',weight:7,opacity:0.9,dashArray:destinationIsBase?'12 7':null}}).addTo(mapInstance);
+      stepIndex=-1; arrived=false; offRouteSamples=0; resetVoiceGuidance(); removeLayer(line); removeArrows(arrows);
+      line=L.geoJSON(route.geometry,{style:{color:'#1367f2',weight:8,opacity:1}}).addTo(mapInstance);
       addArrows(route.geometry.coordinates.map(c=>[c[1],c[0]]),arrows,destinationIsBase?'#783900':'#fff',90);
       mapInstance.fitBounds(line.getBounds(),{padding:[55,55]});
       status('Navegando');
       $('nav-v4-details').textContent=`${(route.distance/1000).toFixed(2)} km · ${Math.ceil(route.duration/60)} min estimados · ${destinationIsBase?'Regreso':'Ida'}`;
       if(warnings.length) {
-        message('Ruta por calles con advertencia: '+warnings.join(' ')+' Revisa el destino antes de iniciar; nunca circules en contravía.',true);
+        message('Ruta con advertencia: '+warnings.join(' ')+' Comprueba las señales y el destino.',true);
       } else message(steps.length?'Ruta preparada. Sigue las indicaciones del mapa. Avisaré antes de cada giro.':'Sigue la ruta indicada por las flechas.',true);
       try {localStorage.setItem('domicilio-v4-last-route',JSON.stringify({target,geometry:route.geometry,at:Date.now()}));}catch(_){}
     }catch(e) {if(generation===routeGeneration) {status('Ruta no disponible');message(`No se pudo actualizar la ruta: ${e.message}. Revisa la conexión.`,true);}}
@@ -205,11 +215,11 @@
       $('nav-v53-capture')?.removeAttribute('hidden');return;
     }
     // No reutilizar instrucciones o geometría del pedido anterior.
-    routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;lastVoice='';routeWarning();window.domicilioMonitor?.ingestRouteAudit?.(null);resetVoiceGuidance();
+    routeGeneration++;calculating=false;route=null;steps=[];stepIndex=-1;arrived=false;offRouteSamples=0;lastVoice='';routeWarning();window.domicilioMonitor?.ingestRouteAudit?.(null);resetVoiceGuidance();
     removeLayer(line);line=null;removeArrows(arrows);
     $('nav-v53-capture')?.setAttribute('hidden','');
     destinationIsBase=false; target={id:pedido.id,number:pedido.number,coords:[Number(pedido.lat),Number(pedido.lng)],approximate:pedido.locationStatus==='estimada'};
-    showDestination(pedido);panel.hidden=false; window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
+    showDestination(pedido);panel.hidden=false;if(typeof updatePedidoMarker==='function')updatePedidoMarker(pedido); window.v3Navigate?.('map'); status('Esperando GPS'); message('Solicitando tu ubicación. Acepta el permiso del navegador.');
     beginGps(); if(freshGps()) calculate();
     else navigator.geolocation?.getCurrentPosition(pos=>{updateGps(pos);calculate();},()=>{}, {enableHighAccuracy:true,timeout:15000});
   }
@@ -220,7 +230,7 @@
     destinationIsBase=true; target={id:null,coords:[...startLocation]}; arrived=false;resetVoiceGuidance();
     panel.hidden=false; window.v3Navigate?.('map'); beginGps(); calculate();
   }
-  function stop() {routeWarning();window.domicilioMonitor?.ingestRouteAudit?.(null);$('nav-v53-capture')?.setAttribute('hidden','');resetDestination();resetVoiceGuidance();routeGeneration++;calculating=false;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}}
+  function stop() {const previousId=target?.id;routeWarning();window.domicilioMonitor?.ingestRouteAudit?.(null);$('nav-v53-capture')?.setAttribute('hidden','');resetDestination();resetVoiceGuidance();routeGeneration++;calculating=false;offRouteSamples=0;target=null;route=null;steps=[];panel.hidden=true;removeLayer(line);line=null;removeArrows(arrows);if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}if(previousId){const previous=pedidos.find(p=>p.id===previousId);if(previous&&typeof updatePedidoMarker==='function')updatePedidoMarker(previous);}}
   function deliver() {
     if(!target?.id) {message('Estás navegando al punto de salida, no a un pedido.');return;}
     const currentId=target.id;

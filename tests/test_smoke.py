@@ -22,7 +22,7 @@ class ApplicationSmokeTests(unittest.TestCase):
         self.assertEqual(json.loads(body), {
             "status": "ok",
             "service": "backend",
-            "version": "5.3.4",
+            "version": "5.4.0",
         })
 
     def test_frontend_contains_map_and_order_workflow(self) -> None:

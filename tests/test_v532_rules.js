@@ -6,7 +6,7 @@ const manager=fs.readFileSync(__dirname+'/../frontend/rules-manager.js','utf8');
 assert(!/\binstallV4Rules\(\);/.test(app),'El arranque no debe reinstalar las reglas eliminadas');
 assert(!v3.includes("delBtn.textContent = 'Eliminar'"),'No debe quedar un botón de eliminar por cada regla');
 for(const id of ['v532-rule-search','v532-select-all','v532-select-duplicates','v532-clear-selection','v532-delete-selected','v532-rule-text','settings-add-rule-btn','v532-cancel-edit'])assert(index.includes(`id="${id}"`),`Falta el control ${id}`);
-assert(index.includes('/static/rules-manager.js?v=533'));
+assert(index.includes('/static/rules-manager.js?v=540'));
 assert(manager.includes('learnedRules.splice('));
 assert(manager.includes('saveState()'));
 assert(manager.includes('r.text=value'));

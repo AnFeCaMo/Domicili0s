@@ -7,7 +7,7 @@ const nav=fs.readFileSync('frontend/navigation.js','utf8');
 const app=fs.readFileSync('frontend/app.js','utf8');
 const v5=fs.readFileSync('frontend/v5.js','utf8');
 for(const id of ['monitor-v533-panel','monitor-v533-enabled','monitor-v533-status','monitor-v533-alerts','monitor-v533-route-alert'])assert(html.includes(`id="${id}"`),`Falta ${id}`);
-assert(html.includes('/static/monitor-v533.js?v=534'));
+assert(html.includes('/static/monitor-v533.js?v=540'));
 assert(nav.includes("ingestGps?.(pos,'navegacion')"));
 assert(app.includes("ingestGps?.(position,'gps-general')"));
 assert(v5.includes("ingestGps?.(pos,'optimizacion')"));

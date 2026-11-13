@@ -71,3 +71,7 @@ Los archivos `MEJORAS_V4.md`, `MEJORAS_V5.md`, `MEJORAS_V5_1.md` y `MEJORAS_V5_2
 El **Monitor inteligente** revisa pedidos, lecturas de GPS y la coherencia textual de direcciones de forma local mientras la app está abierta. Las anomalías se muestran en Inicio, Rutas y Configuración. Las lecturas claramente anómalas se descartan para evitar saltos de marcador. Las direcciones sin coordenadas permanecen en la lista. Configuración permite apagar el monitor. Consulta `MEJORAS_V5_3_3.md`, `INSTALAR_V5_3_3.md` y `PRUEBAS_V5_3_3.md`.
 
 **Privacidad:** no se envía la ubicación del teléfono a un servicio remoto de monitoreo. El despliegue en Render sirve la aplicación, pero no activa seguimiento cuando el navegador está cerrado.
+
+
+## Versión 5.4.0
+Consulta `MEJORAS_V5_4_0.md` e `INSTALAR_V5_4_0.md`. Rutas más directas entre alternativas permitidas, marcadores visibles y recálculo de desvíos.

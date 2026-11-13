@@ -696,16 +696,25 @@ function updatePedidoMarker(pedido) {
   }
 
   if (!Number.isFinite(pedido.lat) || !Number.isFinite(pedido.lng) || pedido.needsLocationReview) return;
+  const isCurrent=window.domicilioNav?.currentTargetId?.()===pedido.id;
+  const estimated=pedido.locationStatus==='estimada' || pedido.locationAccuracy==='interseccion';
+  const done=['entregado','fallido','anulado'].includes(pedido.status);
+  const tone=isCurrent?'actual':estimated?'estimado':done?'terminado':'pendiente';
+  const color={actual:'#165cf2',estimado:'#f59e0b',terminado:'#6b7280',pendiente:'#16a34a'}[tone];
+  const icon=L.divIcon({
+    className:'domicilio-order-pin-wrap',
+    html:`<span class="domicilio-order-pin domicilio-order-pin--${tone}" style="--pin-color:${color}" aria-hidden="true">${escapePedidoHtml(pedido.number)}</span>`,
+    iconSize:[40,46],iconAnchor:[20,42],popupAnchor:[0,-37]
+  });
   const marker = L.marker([pedido.lat, pedido.lng], {
-    title: formatPedidoText(pedido),
-    opacity: pedido.status === 'entregado' ? 0.45 : 1.0,
+    title: formatPedidoText(pedido),icon,opacity:1,zIndexOffset:isCurrent?1200:estimated?450:250,
   }).addTo(mapInstance);
 
   marker.bindPopup(`
     <div style="font-family: 'Inter', sans-serif; font-size: 13px;">
       <strong>#${escapePedidoHtml(pedido.number)} · ${escapePedidoHtml(pedido.name || 'Cliente')}</strong><br/>
       ${escapePedidoHtml(pedido.address || 'Ubicación en mapa')}<br/>
-      <span style="font-weight: 700; color: ${pedido.status === 'entregado' ? 'var(--success)' : 'var(--warning)'};">
+      <span style="font-weight: 700; color: ${color};">
         ${escapePedidoHtml(pedido.status.toUpperCase())}
       </span>
     </div>
