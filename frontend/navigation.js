@@ -63,7 +63,7 @@
   function routeWarning(text='') {const element=$('nav-v534-route-warning');if(element){element.textContent=text;element.hidden=!text;}}
   function showDestination(pedido) {
     const customer=$('nav-v4-customer'),address=$('nav-v4-address'),reference=$('nav-v4-reference');
-    if(customer)customer.textContent=pedido?.name?.trim() || 'Cliente sin nombre';
+    if(customer){const seq=window.domicilioV55?.relativeNumber?.(pedido,pedidos);customer.textContent=(seq?'Entrega '+seq+' · ':'')+(pedido?.name?.trim() || 'Cliente sin nombre');}
     if(address)address.textContent=pedido?.address?.trim() || 'Dirección no especificada';
     if(reference) {
       reference.textContent=pedido?.reference?.trim() ? `Referencia: ${pedido.reference.trim()}` : '';
@@ -246,7 +246,7 @@
     if(next) {
       // Siempre el siguiente del orden aprobado, incluso sin coordenadas.
       window.domicilioV53?.advanceAfterDelivery?.();
-      if(!autoNextCheckbox.checked) showToast(`Entregado. La siguiente es la entrega 1: ${next.address||'dirección pendiente'}`, 'success', 5500);
+      if(!autoNextCheckbox.checked) showToast(`Entregado. El siguiente es #${next.number}: ${next.address||'dirección pendiente'}`, 'success', 5500);
     } else showToast('Jornada sin pedidos pendientes. Finalízala cuando decidas.', 'success', 5500);
   }
   function markNotDelivered() {

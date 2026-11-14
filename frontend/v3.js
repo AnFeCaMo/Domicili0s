@@ -181,7 +181,7 @@
       if (nextName) nextName.textContent = next.name || 'Cliente sin nombre';
       if (nextAddress) nextAddress.textContent = next.address || 'Ubicación seleccionada en el mapa';
       if (nextRef) nextRef.textContent = next.reference ? `Ref.: ${next.reference}` : '';
-      if (nextBadge) nextBadge.textContent = `Entrega 1`;
+      if (nextBadge) nextBadge.textContent = `Parada #${next.number}`;
       if (nextStatus) {
         nextStatus.textContent = next.status === 'en_ruta' ? 'En ruta' : 'Pendiente';
         nextStatus.style.backgroundColor = next.status === 'en_ruta' ? 'var(--purple-soft)' : 'var(--warning-soft)';
@@ -227,7 +227,7 @@
         topRow.style.justifyContent = 'space-between';
 
         const heading = document.createElement('strong');
-        heading.textContent = `Entrega 1 · ${next.name || 'Cliente'}`;
+        heading.textContent = `Siguiente: #${next.number} · ${next.name || 'Cliente'}`;
 
         const badge = document.createElement('span');
         badge.className = 'status-pill-badge';
@@ -473,7 +473,7 @@
     const mapCard = $('map-delivery-card');
     if (mapCard) mapCard.classList.remove('hidden');
     audit('Reanudar jornada');
-    showToast(`Dirígete a la entrega 1`, 'info');
+    showToast(`Dirígete a la parada #${active[0].number}`, 'info');
   });
 
   // 8. ACCIONES RÁPIDAS DE LA PANTALLA DE INICIO

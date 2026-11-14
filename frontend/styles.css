@@ -3071,8 +3071,9 @@ input:focus, textarea:focus, select:focus {
 /* La tarjeta compacta solo muestra cliente y dirección; referencias siguen en Pedidos y la lista. */
 .nav-v4.nav-v541-compact #nav-v4-reference{display:none!important}
 
-/* V5.4.2 — lista vertical en orden real y revisión visible del importador. */
-.pedido-cards-list{display:flex!important;flex-direction:column!important;gap:12px}
-#bulk-parse{display:inline-flex!important}
-.bulk-row-status{overflow-wrap:anywhere}
-.bulk-item:has(.bulk-row-status){scroll-margin-top:90px}
+/* V5.6: controles discretos fuera de la tarjeta de navegación */
+.v56-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.v56-actions button{min-height:40px;white-space:normal}
+.v56-proposal:empty{display:none}
+.v56-proposal{border-top:1px solid var(--border-card,#ddd);padding:10px 0;font-size:.91rem}
+.v56-proposal li{margin:5px 0;overflow-wrap:anywhere}

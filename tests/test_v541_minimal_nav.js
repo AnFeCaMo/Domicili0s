@@ -16,7 +16,7 @@ assert(list.includes('getRoutePedidos()')&&list.includes('p.status=\'fallido\'')
 assert(app.includes('window.domicilioRefreshRouteList?.()'),'La lista se refresca con estado de pedidos');
 assert(!v5.includes("window.v3Navigate?.('map');}"),'Aprobar optimización no fuerza pantalla mapa');
 assert(css.includes('.nav-v4.nav-v541-compact'),'Estilos compactos de navegación');
-assert(html.includes('DOMICILIO V5.4.1'));
+assert(html.includes('DOMICILIO V5.6.0'));
 assert(!/\n  installRules\(\);/.test(v5),'Las reglas eliminadas no se reinstalan al cargar');
 assert(nav.includes('autoNextCheckbox.checked = true'),'El siguiente pedido debe abrirse automáticamente');
 console.log('V5.4.1: navegación compacta y lista operativa: OK');

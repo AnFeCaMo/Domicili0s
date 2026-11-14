@@ -5,7 +5,7 @@
     <meta name="theme-color" content="#6D28D9" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>DOMICILIO V5.4.2 · Asistente Inteligente de Reparto</title>
+    <title>DOMICILIO V5.6.0 · Asistente Inteligente de Reparto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="/static/styles.css?v=54201" />
+    <link rel="stylesheet" href="/static/styles.css" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   </head>
   <body>
@@ -33,7 +33,7 @@
         </div>
         <div class="brand-titles">
           <div class="brand-title-row">
-            <span class="brand-title">DOMICILIO V5.4.2</span>
+            <span class="brand-title">DOMICILIO V5.6.0</span>
             <span class="brand-version-pill">PRO</span>
           </div>
           <span class="brand-subtitle">Asistente Inteligente de Reparto</span>
@@ -499,10 +499,10 @@
               <div class="form-row-2col">
                 <div class="form-field form-field-narrow">
                   <label for="pedido-number">
-                    <span>ID interno automático</span>
+                    <span>Parada / # Pedido</span>
                     <span class="required-indicator">*</span>
                   </label>
-                  <input id="pedido-number" type="number" min="1" step="1" required readonly title="Identificador interno automático: no es el orden de entrega" />
+                  <input id="pedido-number" type="number" min="1" step="1" required placeholder="1" />
                 </div>
 
                 <div class="form-field">
@@ -640,6 +640,22 @@
               <div id="v43-current-orders" class="suggestion-box" aria-live="polite"></div>
               <div id="suggestion-preview" class="suggestion-box" aria-live="polite"></div>
               <div id="address-feedback" class="address-feedback hidden" aria-live="polite"></div>
+            </div>
+
+            <!-- Herramientas reales de jornada V5.6; la navegación sigue compacta -->
+            <div class="card route-panel-card" id="v56-tools">
+              <h3 class="panel-card-title">Mi jornada inteligente</h3>
+              <p id="v56-stats" class="small text-secondary" aria-live="polite"></p>
+              <p id="v56-sectors-count" class="small text-secondary"></p>
+              <div class="v56-actions">
+                <button type="button" class="btn btn-purple-primary btn-sm" id="v56-sectors">Proponer orden por sectores</button>
+                <button type="button" class="btn btn-outline btn-sm" id="v56-speak-next">Escuchar siguiente dirección</button>
+                <button type="button" class="btn btn-outline btn-sm" id="v56-voice">Dar orden por voz</button>
+                <button type="button" class="btn btn-outline btn-sm" id="v56-recover">Recuperar orden anterior</button>
+              </div>
+              <p id="v56-voice-feedback" class="small text-secondary" role="status"></p>
+              <div id="v56-proposal" class="v56-proposal" aria-live="polite"></div>
+              <p class="small text-secondary">Las zonas son orientativas por nomenclatura. No se modifica la ruta sin aprobar. Las órdenes de voz que cambien pedidos requieren confirmación manual.</p>
             </div>
 
             <!-- Lista operativa: siempre disponible, incluso sin GPS -->
@@ -945,7 +961,7 @@
             <!-- 5. Información del Proyecto y Autor -->
             <div class="card settings-section-card about-app-card">
               <div class="about-app-inner">
-                <h4>DOMICILIO V5.4.2 · Asistente Inteligente de Reparto</h4>
+                <h4>DOMICILIO V5.6.0 · Asistente Inteligente de Reparto</h4>
                 <p class="small text-muted">Edición Profesional · Ciénaga, Magdalena</p>
                 <p class="creator-signature">Creado Por el Ing. Andrès Camacho</p>
               </div>
@@ -1020,18 +1036,20 @@
       crossorigin=""
     ></script>
     <script src="/static/route-optimizer.js"></script>
-    <script src="/static/address-importer-v542.js?v=54201"></script>
-    <script src="/static/app.js?v=54201"></script>
-    <script src="/static/v3.js?v=54201"></script>
-    <script src="/static/route-audit-v534.js?v=54201"></script>
-    <script src="/static/navigation.js?v=54201"></script>
+    <script src="/static/address-importer-v542.js?v=56000"></script>
+    <script src="/static/address-intelligence-v550.js?v=56000"></script>
+    <script src="/static/app.js?v=56000"></script>
+    <script src="/static/v3.js?v=56000"></script>
+    <script src="/static/route-audit-v534.js?v=56000"></script>
+    <script src="/static/navigation.js?v=56000"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script defer src="/static/bulk.js?v=542"></script>
-    <script defer src="/static/location-lookup.js?v=54201"></script>
-    <script defer src="/static/v5.js?v=54201"></script>
-    <script defer src="/static/v53.js?v=54201"></script>
-    <script defer src="/static/rules-manager.js?v=54201"></script>
-    <script defer src="/static/monitor-v533.js?v=54201"></script>
-    <script defer src="/static/route-checklist-v541.js?v=54201"></script>
+    <script defer src="/static/bulk.js?v=541"></script>
+    <script defer src="/static/location-lookup.js?v=56000"></script>
+    <script defer src="/static/v5.js?v=56000"></script>
+    <script defer src="/static/v53.js?v=56000"></script>
+    <script defer src="/static/rules-manager.js?v=56000"></script>
+    <script defer src="/static/monitor-v533.js?v=56000"></script>
+    <script defer src="/static/route-checklist-v541.js?v=56000"></script>
+    <script defer src="/static/smart-journey-v560.js?v=56000"></script>
   </body>
 </html>

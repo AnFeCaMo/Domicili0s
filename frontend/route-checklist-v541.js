@@ -14,7 +14,7 @@
     window.v3Audit ||= [];
     window.v3Audit.push({at:now,action:delivered?'Entrega completada':'Entrega no realizada',details:`Pedido #${p.number}${!delivered?' — '+p.failedReason:''}`});
     if(window.domicilioNav?.currentTargetId?.()===p.id)window.domicilioNav?.stop?.();
-    updatePedidoMarker(p);saveState();renderPedidoList();window.v3Refresh?.();
+    updatePedidoMarker(p);saveState();renderPedidoList();window.v3Refresh?.();window.dispatchEvent(new Event('domicilio:v56-update'));
     // La lista permite continuar manualmente sin abrir navegador ni forzar el mapa.
     if(!getRoutePedidos().length)showToast('Se registraron todos los pedidos de la jornada.','success');
   }
@@ -32,7 +32,9 @@
       info.append(label('strong',p.name?.trim()||'Cliente sin nombre'),label('p',p.address?.trim()||'Dirección pendiente'));
       if(p.reference)info.appendChild(label('p',`Referencia: ${p.reference}`,'route-checklist-note'));
       const located=Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&!p.needsLocationReview;
-      if(!located||p.locationStatus==='estimada')info.appendChild(label('div',located?'Ubicación aproximada: confirmar el domicilio':'Ubicación sin GPS: entrega disponible desde la lista','route-checklist-note'));
+      const verification=window.domicilioV55?.status(p)||'pendiente';
+      const zone=window.domicilioV56?.sector?.(p);if(zone)info.appendChild(label('div',zone==='centro'?'Sector: Centro (orientativo)':zone==='calles-altas'?'Sector: Calles altas (orientativo)':'Sector por verificar','route-checklist-note'));
+      info.appendChild(label('div',verification==='confirmada'?'Ubicación confirmada':verification==='aproximada'?'Punto aproximado: verifica la vivienda':'Sin GPS: puedes entregar desde la lista','route-checklist-note'));
       head.append(number,info);item.appendChild(head);
       const actions=label('div','','route-checklist-actions');
       const nav=label('button',located?'Ver ruta':'Ver pedido');nav.type='button';nav.addEventListener('click',()=>window.domicilioNav?.start?.(p));

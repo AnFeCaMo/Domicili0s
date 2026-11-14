@@ -55,7 +55,9 @@
     return null;
   }
   async function lookup(address){
-    const value=String(address||'').trim();if(!value)return {status:'pending',reason:'Dirección vacía'};
+    const value=root.domicilioV55?.normalize(address)||String(address||'').trim();if(!value)return {status:'pending',reason:'Dirección vacía'};
+    const memorized=typeof knownAddresses!=='undefined'?root.domicilioV55?.findConfirmed(value,knownAddresses):null;
+    if(memorized)return {status:'found',lat:Number(memorized.lat),lng:Number(memorized.lng),source:'memoria-confirmada',accuracy:'confirmada',label:'Ubicación confirmada anteriormente',needsConfirmation:false};
     const normalized=strip(value),cache=getCache(),saved=cache[normalized];
     if(saved&&Date.now()-saved.savedAt<14*86400000)return {...saved.result,fromCache:true};
     try{

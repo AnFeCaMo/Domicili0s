@@ -5,7 +5,7 @@
   const valid = p => Number.isFinite(p?.lat) && Number.isFinite(p?.lng) && Math.abs(p.lat)<=90 && Math.abs(p.lng)<=180 && !p.needsLocationReview;
   const sig = entries => entries.map(p => [p.id,p.name,p.address,p.reference,p.lat,p.lng,p.priority,p.status,p.needsLocationReview,p.locationStatus].join(':')).join('|');
   const norm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
-  const key = s => norm(window.domicilioNormalizeAddress?.(s)||s);
+  const key = s => window.domicilioV55?.key?.(window.domicilioNormalizeAddress?.(s)||s) || norm(window.domicilioNormalizeAddress?.(s)||s);
   const notice = (s,error=false) => { const el=$('v5-plan-status'); if(el){el.textContent=s;el.style.color=error?'#b91c1c':'';} const bulk=$('bulk-status');if(bulk)bulk.textContent=s; };
   // Las reglas editables son preferencias documentadas y no controlan el servicio OSRM.
   // No instalar reglas predeterminadas al arrancar: respeta las reglas borradas por usuario.
@@ -61,7 +61,7 @@
   }
   const delay=ms=>new Promise(r=>setTimeout(r,ms));
   const findLocation = async address => window.domicilioLocationLookup?.lookup(address) || {status:'error',reason:'Buscador de ubicaciones no cargado'};
-  const findSaved = address => knownAddresses.find(x=>key(x.address)===key(address)&&valid(x));
+  const findSaved = address => window.domicilioV55?.findConfirmed?.(address,knownAddresses) || (!window.domicilioV55?knownAddresses.find(x=>key(x.address)===key(address)&&valid(x)):null);
   let gpsIssue='';
   const geolocate = () => new Promise(resolve=>{
     if(!window.isSecureContext){gpsIssue='La página necesita HTTPS para acceder al GPS';resolve(null);return;}
@@ -150,14 +150,6 @@
       notice('Preparando toda la jornada y comprobando ubicaciones conocidas…');
       const old=getRoutePedidos();
       const incoming=afterDelivery?[]:(window.domicilioBulkV5?.getDraft()||[]);
-      const ambiguous=incoming.filter(p=>p.needsAddressReview ||
-        (window.domicilioImportadorV542?.validateAddress(p.address)?.ok===false));
-      if(ambiguous.length){
-        $('bulk-parse')?.click();
-        notice(`${ambiguous.length} dirección(es) requieren revisión. Corrige las placas en la vista previa antes de optimizar; no se guardó ningún pedido.`,true);
-        $('bulk-results')?.scrollIntoView?.({behavior:'smooth',block:'start'});
-        return;
-      }
       const keys=new Set(old.map(p=>key(p.address)+'|'+norm(p.name)));
       const newRows=[];
       for(const raw of incoming){

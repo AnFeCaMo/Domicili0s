@@ -89,3 +89,7 @@ El **Monitor inteligente** revisa pedidos, lecturas de GPS y la coherencia textu
 
 ## Versión 5.4.0
 Consulta `MEJORAS_V5_4_0.md` e `INSTALAR_V5_4_0.md`. Rutas más directas entre alternativas permitidas, marcadores visibles y recálculo de desvíos.
+
+## DOMICILIO V5.6.0
+
+Consulta `MEJORAS_V5_6_0.md`, `INSTALAR_V5_6_0.md` y `PRUEBAS_V5_6_0.md` para conocer la integración de rutas por sectores orientativos, memoria y numeración V5.5, controles de voz y recuperación local. Los controles de voz no modifican un pedido sin revisión manual. La aplicación no ofrece rutas viales completas sin Internet.

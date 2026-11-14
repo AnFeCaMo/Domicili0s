@@ -31,6 +31,7 @@ let suggestionReason = '';
 let speechRecognition = null;
 const pedidoMarkers = new Map();
 let selectedLocation = null;
+let selectedLocationConfidence = 'pendiente';
 let selectedMarker = null;
 let startLocation = [...CIE_NAGA_CENTER];
 let startMarker = null;
@@ -67,17 +68,11 @@ function generatePedidoId() {
 
 function formatPedidoText(pedido) {
   const addressLabel = pedido.address || pedido.name || 'Ubicación seleccionada en el mapa';
-  const pos = deliveryPosition(pedido);
-  return `${pos ? 'Entrega '+pos : 'Pedido finalizado'} - ${addressLabel}`;
+  return `#${String(pedido.number).padStart(3, '0')} - ${addressLabel}`;
 }
 
 function getRoutePedidos() {
-  return pedidos.filter((pedido) => !['entregado', 'fallido', 'anulado'].includes(pedido.status));
-}
-// El número interno es estable; el número VISIBLE corresponde a la ruta aprobada.
-function deliveryPosition(pedido) {
-  return window.domicilioImportadorV542?.deliveryNumber(pedido,pedidos) ??
-    (()=>{const i=getRoutePedidos().findIndex(p=>p.id===pedido?.id);return i>=0?i+1:null;})();
+  return pedidos.filter((pedido) => !['entregado', 'fallido'].includes(pedido.status));
 }
 
 function movePedido(pedidoId, direction) {
@@ -145,8 +140,7 @@ function renderPedidoList() {
   const filteredPedidos = pedidos.filter(pedido => {
     if (currentOrderFilter === 'all') return true;
     return pedido.status === currentOrderFilter;
-  }).sort((a,b) => Number(deliveryPosition(a)===null)-Number(deliveryPosition(b)===null));
-  // Los activos aparecen de arriba hacia abajo; los finalizados quedan después.
+  });
 
   if (filteredPedidos.length === 0) {
     const empty = document.createElement('li');
@@ -191,7 +185,7 @@ function renderPedidoList() {
     cardMain.innerHTML = `
       <div class="pedido-card-header">
         <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-          <div class="pedido-stop-badge" title="${deliveryPosition(pedido) ? 'Entrega ' + deliveryPosition(pedido) : 'Finalizado'}">${deliveryPosition(pedido) ?? (pedido.status==='entregado'?'✓':'×')}</div>
+          <div class="pedido-stop-badge">#${pedido.number}</div>
           <div class="pedido-card-info">
             <h4 class="pedido-customer-name">${String(pedido.name || 'Cliente sin nombre').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</h4>
             <div class="pedido-address-text">
@@ -262,7 +256,7 @@ function renderPedidoList() {
       pedidoNameInput.value = pedido.name && !pedido.name.startsWith('Pedido #') ? pedido.name : '';
       pedidoAddressInput.value = pedido.address === 'Ubicación seleccionada en el mapa' ? '' : pedido.address || '';
       document.getElementById('pedido-reference').value = pedido.reference || '';
-      if(Number.isFinite(pedido.lat)&&Number.isFinite(pedido.lng))updateSelectedLocation([pedido.lat, pedido.lng]);
+      if(Number.isFinite(pedido.lat)&&Number.isFinite(pedido.lng))updateSelectedLocation([pedido.lat, pedido.lng],(pedido.locationSource==='gps-confirmado'||pedido.locationSource==='mapa-confirmado')?'confirmada':'estimada');
       else {selectedLocation=null;selectedCoordinates.textContent='Ubicación pendiente: usa el mapa o busca dirección';}
       document.getElementById('form-title').textContent = `Editar Pedido #${pedido.number}`;
       pedidoFormWrapper.classList.remove('hidden');
@@ -412,8 +406,6 @@ function renderPedidoList() {
     window.lucide.createIcons();
   }
   window.domicilioRefreshRouteList?.();
-  // Actualizar TODAS las etiquetas del mapa al cambiar el orden o cerrar una entrega.
-  if (mapInstance && typeof L !== 'undefined') pedidos.forEach(updatePedidoMarker);
 }
 
 function formatCoordinates([lat, lng]) {
@@ -475,7 +467,7 @@ function renderRouteSummary(data, routeOrders = []) {
       <div style="font-size: 0.88rem; color: var(--text-secondary);">
         <strong>Secuencia recomendada (según datos disponibles):</strong>
         <ol style="margin-left: 20px; margin-top: 6px;">
-          ${routeOrders.map((p,i) => `<li>Entrega ${i+1} — ${escapePedidoHtml(p.name || p.address || 'Sin nombre')}</li>`).join('')}
+          ${routeOrders.map(p => `<li>#${escapePedidoHtml(p.number)} — ${escapePedidoHtml(p.name || p.address || 'Sin nombre')}</li>`).join('')}
         </ol>
       </div>
     `;
@@ -508,6 +500,8 @@ function saveState() {
     localStorage.setItem('domicilios-cienaga-state', JSON.stringify(state));
     // V5.3.3: actualizar alertas inmediatamente después de cualquier cambio de pedidos o reglas.
     window.domicilioMonitor?.reviewAll?.();
+    window.dispatchEvent(new Event('domicilio:v56-update'));
+    if(mapInstance) getRoutePedidos().forEach(p=>updatePedidoMarker(p));
   } catch (error) {
     console.error('No se pudo guardar el estado local.', error);
     showAddressFeedback('No se pudieron guardar los cambios en este navegador.', true);
@@ -653,8 +647,9 @@ function showAddressFeedback(message, isError) {
   addressFeedback.style.color = isError ? 'var(--danger)' : 'var(--primary)';
 }
 
-function updateSelectedLocation(location) {
+function updateSelectedLocation(location, confidence='confirmada') {
   selectedLocation = [...location];
+  selectedLocationConfidence = confidence;
   selectedCoordinates.textContent = formatCoordinates(selectedLocation);
 
   if (!selectedMarker) {
@@ -662,6 +657,7 @@ function updateSelectedLocation(location) {
     selectedMarker.on('dragend', () => {
       const position = selectedMarker.getLatLng();
       selectedLocation = [position.lat, position.lng];
+      selectedLocationConfidence='confirmada';
       selectedCoordinates.textContent = formatCoordinates(selectedLocation);
     });
   } else {
@@ -687,6 +683,7 @@ function resetPedidoForm() {
   editingPedidoId = null;
   pedidoForm.reset();
   selectedLocation = null;
+  selectedLocationConfidence='pendiente';
   if (selectedMarker) {
     mapInstance.removeLayer(selectedMarker);
     selectedMarker = null;
@@ -708,13 +705,14 @@ function updatePedidoMarker(pedido) {
 
   if (!Number.isFinite(pedido.lat) || !Number.isFinite(pedido.lng) || pedido.needsLocationReview) return;
   const isCurrent=window.domicilioNav?.currentTargetId?.()===pedido.id;
+  const numberVisible=window.domicilioV55?.relativeNumber(pedido,pedidos)??pedido.number;
   const estimated=pedido.locationStatus==='estimada' || pedido.locationAccuracy==='interseccion';
   const done=['entregado','fallido','anulado'].includes(pedido.status);
   const tone=isCurrent?'actual':estimated?'estimado':done?'terminado':'pendiente';
   const color={actual:'#165cf2',estimado:'#f59e0b',terminado:'#6b7280',pendiente:'#16a34a'}[tone];
   const icon=L.divIcon({
     className:'domicilio-order-pin-wrap',
-    html:`<span class="domicilio-order-pin domicilio-order-pin--${tone}" style="--pin-color:${color}" aria-hidden="true">${escapePedidoHtml(deliveryPosition(pedido) ?? (pedido.status==='entregado'?'✓':'×'))}</span>`,
+    html:`<span class="domicilio-order-pin domicilio-order-pin--${tone}" style="--pin-color:${color}" aria-hidden="true">${escapePedidoHtml(numberVisible)}</span>`,
     iconSize:[40,46],iconAnchor:[20,42],popupAnchor:[0,-37]
   });
   const marker = L.marker([pedido.lat, pedido.lng], {
@@ -723,7 +721,7 @@ function updatePedidoMarker(pedido) {
 
   marker.bindPopup(`
     <div style="font-family: 'Inter', sans-serif; font-size: 13px;">
-      <strong>${deliveryPosition(pedido) ? 'Entrega '+deliveryPosition(pedido) : 'Pedido finalizado'} · ${escapePedidoHtml(pedido.name || 'Cliente')}</strong><br/>
+      <strong>#${escapePedidoHtml(pedido.number)} · ${escapePedidoHtml(pedido.name || 'Cliente')}</strong><br/>
       ${escapePedidoHtml(pedido.address || 'Ubicación en mapa')}<br/>
       <span style="font-weight: 700; color: ${color};">
         ${escapePedidoHtml(pedido.status.toUpperCase())}
@@ -792,47 +790,26 @@ async function calculateRoute() {
 }
 
 async function geocodeAddress() {
-  const address = normalizeAddress(pedidoAddressInput.value.trim());
-  pedidoAddressInput.value = address;
-  if (!address) {
-    showAddressFeedback('Escribe una dirección para buscar.', true);
-    return;
-  }
-
-  const cached = knownAddresses.find((item) => item.address.toLowerCase() === address.toLowerCase());
-  if (cached) {
-    updateSelectedLocation([cached.lat, cached.lng]);
-    mapInstance.flyTo([cached.lat, cached.lng], 16);
-    showToast('Ubicación obtenida del caché local', 'info');
-    return;
-  }
-
-  const fullQuery = `${address}, Ciénaga, Magdalena, Colombia`;
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(fullQuery)}`;
-
-  searchLocationButton.disabled = true;
-  showToast('Buscando dirección...', 'info');
-
+  const address = window.domicilioNormalizeAddress(pedidoAddressInput.value.trim());
+  pedidoAddressInput.value=address;
+  if(!address){showAddressFeedback('Escribe una dirección para buscar.',true);return;}
+  // No reutilizar un marcador anterior si la nueva dirección no puede verificarse.
+  selectedLocation=null;selectedLocationConfidence='pendiente';
+  if(selectedMarker){mapInstance.removeLayer(selectedMarker);selectedMarker=null;}
+  selectedCoordinates.textContent='Ubicación pendiente de verificar';
+  searchLocationButton.disabled=true;
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Error al conectar con el servicio de geocodificación.');
-    const results = await response.json();
-    if (!Array.isArray(results) || results.length === 0) {
-      showAddressFeedback('No se encontró la dirección en Ciénaga.', true);
+    const result=await window.domicilioLocationLookup.lookup(address);
+    if(result.status!=='found'){
+      showAddressFeedback(result.reason||'No se pudo verificar el punto de esta dirección. Selecciónalo en el mapa.',true);
       return;
     }
-
-    const { lat, lon } = results[0];
-    const newLocation = [Number(lat), Number(lon)];
-    updateSelectedLocation(newLocation);
-    mapInstance.flyTo(newLocation, 16);
-    clearAddressFeedback();
-    showToast('Dirección localizada', 'success');
-  } catch (error) {
-    showAddressFeedback(error.message, true);
-  } finally {
-    searchLocationButton.disabled = false;
-  }
+    updateSelectedLocation([Number(result.lat),Number(result.lng)],result.needsConfirmation?'estimada':'confirmada');
+    mapInstance.flyTo([Number(result.lat),Number(result.lng)],16);
+    if(result.needsConfirmation)showAddressFeedback('Punto orientativo, NO es la casa confirmada. Puedes ajustar el marcador manualmente.',true);
+    else clearAddressFeedback();
+  }catch(err){showAddressFeedback(err.message||'Error consultando ubicación',true);}
+  finally{searchLocationButton.disabled=false;}
 }
 
 function handlePedidoSubmit(event) {
@@ -853,14 +830,13 @@ function handlePedidoSubmit(event) {
   pedidoAddressInput.value = address;
   const reference = document.getElementById('pedido-reference').value.trim();
 
-  if (address && hasSelectedPoint && (!editingPedidoId || !pedidos.some(p=>p.id===editingPedidoId && p.address!==address && p.lat===selectedLocation[0] && p.lng===selectedLocation[1]))) {
-    const existingIndex = knownAddresses.findIndex((item) => item.address.toLowerCase() === address.toLowerCase());
-    if (existingIndex >= 0) {
-      knownAddresses[existingIndex] = { address, lat: selectedLocation[0], lng: selectedLocation[1] };
-    } else {
-      knownAddresses.push({ address, lat: selectedLocation[0], lng: selectedLocation[1] });
-      if (knownAddresses.length > 2000) knownAddresses.shift();
-    }
+  if(address && hasSelectedPoint && selectedLocationConfidence==='confirmada' &&
+     !(editingPedidoId && pedidos.some(p=>p.id===editingPedidoId && p.address!==address && p.lat===selectedLocation[0] && p.lng===selectedLocation[1]))){
+    const k=window.domicilioV55.key(address);
+    const saved={address,lat:selectedLocation[0],lng:selectedLocation[1],verifiedAt:new Date().toISOString(),source:'mapa-confirmado'};
+    const index=knownAddresses.findIndex(a=>window.domicilioV55.key(a.address)===k);
+    if(index>=0)knownAddresses[index]=saved;else knownAddresses.push(saved);
+    if(knownAddresses.length>2000)knownAddresses.shift();
   }
 
   if (editingPedidoId) {
@@ -876,7 +852,8 @@ function handlePedidoSubmit(event) {
       pedido.lat = hasSelectedPoint && !addressMovedWithoutNewLocation ? selectedLocation[0] : null;
       pedido.lng = hasSelectedPoint && !addressMovedWithoutNewLocation ? selectedLocation[1] : null;
       pedido.needsLocationReview = !hasSelectedPoint || addressMovedWithoutNewLocation;
-      pedido.locationStatus = hasSelectedPoint && !pedido.needsLocationReview ? 'confirmada':'pendiente';
+      pedido.locationStatus = hasSelectedPoint && !pedido.needsLocationReview ? (selectedLocationConfidence==='confirmada'?'confirmada':'estimada'):'pendiente';
+      pedido.locationSource = pedido.locationStatus==='confirmada'?'mapa-confirmado':'osm-aproximada';
       updatePedidoMarker(pedido);
       window.v3Audit ||= [];
       window.v3Audit.push({ at: new Date().toISOString(), action: 'Editar pedido', details: `Pedido #${pedido.number}` });
@@ -892,7 +869,8 @@ function handlePedidoSubmit(event) {
       lat: hasSelectedPoint ? selectedLocation[0] : null,
       lng: hasSelectedPoint ? selectedLocation[1] : null,
       needsLocationReview: !hasSelectedPoint,
-      locationStatus: hasSelectedPoint ? 'confirmada':'pendiente',
+      locationStatus: hasSelectedPoint ? (selectedLocationConfidence==='confirmada'?'confirmada':'estimada'):'pendiente',
+      locationSource: hasSelectedPoint ? (selectedLocationConfidence==='confirmada'?'mapa-confirmado':'osm-aproximada'):null,
       status: 'pendiente',
     };
     pedidos.push(newPedido);
@@ -945,7 +923,6 @@ function initializeMap() {
 
 // Asistente Local Heurístico
 function parseAddressList(text) {
-  if(window.domicilioImportadorV542?.parse) return window.domicilioImportadorV542.parse(text,normalizeAddress,separatePedidoFields);
   // V4.5: permitir listas numeradas copiadas de un chat o documento, tanto
   // «1. Cliente\nCalle...» como «1. Calle...\nCliente».
   const original=String(text||'').replace(/\r/g,'');
@@ -1409,7 +1386,7 @@ function displayCurrentOrders(mode='manual') {
   const list=document.createElement('div');list.className='v43-existing-list';panel.append(list);
   active.forEach((p,i)=>{
     const line=document.createElement('div');line.className='v43-existing-row';
-    const label=document.createElement('strong');label.textContent=`Entrega ${i+1}`;line.append(label);
+    const label=document.createElement('strong');label.textContent=`${i+1}. Pedido #${p.number}`;line.append(label);
     if(mode==='manual'){
       const up=document.createElement('button');up.type='button';up.className='btn btn-outline btn-sm';up.textContent='↑ Subir';up.disabled=i===0 || p.status==='en_ruta' || (i===1 && (active[0]?.status==='en_ruta' || window.domicilioNav?.currentTargetId?.()===active[0]?.id));
       up.onclick=()=>{movePedido(p.id,-1);displayCurrentOrders('manual');};
@@ -1660,6 +1637,7 @@ function normalizeAddress(raw) {
   return text.trim();
 }
 window.domicilioNormalizeAddress=normalizeAddress;
+window.domicilioNormalizeAddress=(raw)=>window.domicilioV55.normalize(normalizeAddress(raw));
 const V4_RULES=[
 'Usar la posición GPS actual como origen cuando sea precisa y reciente.',
 'Agrupar pedidos cercanos y sugerir el orden con menor tiempo de carretera.',
